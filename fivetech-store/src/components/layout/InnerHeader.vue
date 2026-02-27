@@ -16,22 +16,6 @@
         <a href="/contact" class="nav-link">Liên hệ</a>
       </nav>
 
-      <!-- Search Box -->
-      <div class="search-box" ref="searchBox">
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Tìm kiếm sản phẩm..."
-          class="search-input"
-          @focus="showDropdown = true"
-          @keyup.enter="goToSearch"
-        />
-
-        <button class="search-btn" @click="goToSearch">
-          🔍
-        </button>
-
-      </div>
 
       <!-- Auth Buttons -->
 <div class="auth-buttons">

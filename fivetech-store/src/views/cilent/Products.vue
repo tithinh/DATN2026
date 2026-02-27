@@ -30,6 +30,22 @@
               Hiển thị <strong>{{ products.length }}</strong> / {{ totalProducts }} sản phẩm
             </div>
             <div class="toolbar-actions">
+              <!-- Search Input -->
+              <div class="search-box">
+                <input 
+                  type="text" 
+                  v-model="searchQuery" 
+                  placeholder="Tìm kiếm sản phẩm..." 
+                  class="search-input"
+                  @keyup.enter="handleSearch"
+                />
+                <button class="search-btn" @click="handleSearch">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </button>
+              </div>
               <select class="sort-select" v-model="sortBy" @change="handleSortChange">
                 <option value="newest">Mới nhất</option>
                 <option value="price_asc">Giá thấp đến cao</option>
@@ -50,9 +66,11 @@
             <ProductCard 
               v-for="product in products" 
               :key="product.product_id" 
-              :product="product" 
+              :product="product"
+              :is-wishlisted="wishlistProductIds.has(product.product_id)"
               @add-to-cart="addToCart"
               @quick-view="quickView"
+              @toggle-wishlist="toggleWishlistFromCard"
             />
           </div>
 
@@ -120,7 +138,7 @@ const filters = ref({
 })
 const products = ref<any[]>([])
 const loading = ref(true)
-const sortBy = ref('newest') // mặc định
+const sortBy = ref('newest')
 const currentPage = ref(1)
 const pagination = ref({
   current_page: 1,
@@ -131,17 +149,40 @@ const pagination = ref({
   to: 12
 })
 
+// Search state
+const searchQuery = ref('')
+
+// Wishlist state
+const wishlistProductIds = ref<Set<number | string>>(new Set())
+const wishlistLoading = ref(false)
+
 // Tổng số sản phẩm (từ API)
 const totalProducts = computed(() => pagination.value.total)
 
-// Fetch danh sách sản phẩm
+// Fetch danh sách sản phẩm với filters và search
 const fetchProducts = async () => {
   loading.value = true
   try {
-    const params = {
+    const params: any = {
       page: currentPage.value,
       per_page: 12,
-      sort: sortBy.value, // gửi param sort lên backend
+      sort: sortBy.value,
+    }
+
+    // Áp dụng filter từ sidebar
+    if (filters.value.category_ids && filters.value.category_ids.length) {
+      params.category_id = filters.value.category_ids.join(',')
+    }
+    if (filters.value.min_price !== null && filters.value.min_price !== undefined) {
+      params.min_price = filters.value.min_price
+    }
+    if (filters.value.max_price !== null && filters.value.max_price !== undefined) {
+      params.max_price = filters.value.max_price
+    }
+
+    // Áp dụng search
+    if (searchQuery.value.trim()) {
+      params.search = searchQuery.value.trim()
     }
 
     const res = await api.get('/products', { params })
@@ -160,6 +201,57 @@ const fetchProducts = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// Fetch user's wishlist
+const fetchWishlist = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  
+  wishlistLoading.value = true
+  try {
+    const res = await api.get('/wishlist')
+    const wishlistItems = res.data.data || []
+    // Lưu các product_id vào Set để tra cứu nhanh
+    wishlistProductIds.value = new Set(wishlistItems.map((item: any) => item.product_id))
+  } catch (err) {
+    console.error('Lỗi tải wishlist:', err)
+  } finally {
+    wishlistLoading.value = false
+  }
+}
+
+// Toggle wishlist từ ProductCard
+const toggleWishlistFromCard = async (product: any) => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    return alert('Vui lòng đăng nhập để sử dụng tính năng yêu thích!')
+  }
+
+  try {
+    const productId = product.product_id
+    if (wishlistProductIds.value.has(productId)) {
+      // Xóa khỏi wishlist
+      await api.delete(`/wishlist/remove/${productId}`)
+      wishlistProductIds.value.delete(productId)
+      alert('Đã xóa khỏi danh sách yêu thích')
+    } else {
+      // Thêm vào wishlist
+      await api.post(`/wishlist/add/${productId}`)
+      wishlistProductIds.value.add(productId)
+      alert('Đã thêm vào danh sách yêu thích')
+    }
+  } catch (err: any) {
+    console.error('Lỗi wishlist:', err)
+    const message = err.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại!'
+    alert(message)
+  }
+}
+
+// Handle search
+const handleSearch = () => {
+  currentPage.value = 1
+  fetchProducts()
 }
 
 // Khi thay đổi sort → reset trang 1 và fetch lại
@@ -188,47 +280,6 @@ const visiblePages = computed(() => {
   }
   return pages
 })
-
-// const totalProducts = computed(() => pagination.value.total)
-
-// // Fetch products
-// const fetchProducts = async () => {
-//   loading.value = true
-//   try {
-//     const params: any = {
-//       page: currentPage.value,
-//       per_page: pagination.value.per_page,
-//       sort: sortBy.value
-//     }
-
-//     // Áp dụng filter từ sidebar
-//     if (filters.value.category_ids.length) {
-//       params.category_id = filters.value.category_ids.join(',')
-//     }
-//     if (filters.value.min_price !== null) {
-//       params.min_price = filters.value.min_price
-//     }
-//     if (filters.value.max_price !== null) {
-//       params.max_price = filters.value.max_price
-//     }
-
-//     const res = await api.get('/products', { params })
-
-//     products.value = res.data.data || []
-//     pagination.value = {
-//       current_page: res.data.current_page || 1,
-//       last_page: res.data.last_page || 1,
-//       per_page: res.data.per_page || 12,
-//       total: res.data.total || 0,
-//       from: res.data.from || 1,
-//       to: res.data.to || 12
-//     }
-//   } catch (err) {
-//     console.error('Lỗi tải danh sách sản phẩm:', err)
-//   } finally {
-//     loading.value = false
-//   }
-// }
 
 // Change page
 const changePage = (page: number) => {
@@ -292,6 +343,7 @@ const handleQuickViewAddToCart = (data: any) => {
 // Load ban đầu
 onMounted(() => {
   fetchProducts()
+  fetchWishlist()
 })
 </script>
 
@@ -346,5 +398,49 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   margin-top: 40px;
+}
+
+/* Search Box Styles */
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.search-box:focus-within {
+  border-color: #ff6b35;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  padding: 10px 14px;
+  font-size: 14px;
+  width: 200px;
+  background: transparent;
+}
+
+.search-input::placeholder {
+  color: #94a3b8;
+}
+
+.search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  background: #ff6b35;
+  border: none;
+  cursor: pointer;
+  color: white;
+  transition: background 0.3s;
+}
+
+.search-btn:hover {
+  background: #e55a2b;
 }
 </style>

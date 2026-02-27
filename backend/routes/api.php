@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\ContactController;
 
 // Tất cả route trong api.php đã có prefix /api tự động
 
@@ -36,7 +38,28 @@ Route::prefix('v1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
 
+    // Password Reset
+    Route::post('/password/forgot', [AuthController::class, 'forgotPassword']);
+    Route::post('/password/reset', [AuthController::class, 'resetPassword']);
+
+    // Social Login - Google
+    Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
+    Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+
+    // Social Login - Facebook
+    Route::get('/auth/facebook', [AuthController::class, 'redirectToFacebook']);
+    Route::get('/auth/facebook/callback', [AuthController::class, 'handleFacebookCallback']);
+
     Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+
+    // News (public)
+    Route::get('/news', [NewsController::class, 'index']);
+    Route::get('/news/{slug}', [NewsController::class, 'show']);
+    Route::get('/news/categories', [NewsController::class, 'categories']);
+    Route::get('/news/popular', [NewsController::class, 'popular']);
+
+    // Contact (public - gửi liên hệ)
+    Route::post('/contacts', [ContactController::class, 'store']);
 
     // CSRF cho Sanctum (nếu cần)
     Route::get('/sanctum/csrf-cookie', function () {
@@ -62,7 +85,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [CartController::class, 'index']);
             Route::post('/add', [CartController::class, 'add']);
             Route::put('/update', [CartController::class, 'update']);
-            Route::delete('/remove/{variant_id}', [CartController::class, 'remove']);
+            Route::delete('/remove/{id}', [CartController::class, 'remove']);
             Route::delete('/clear', [CartController::class, 'clear']);
             Route::get('/total', [CartController::class, 'total']);
         });
@@ -78,6 +101,7 @@ Route::prefix('v1')->group(function () {
         // Orders (cho user)
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'index']);
+            Route::post('/', [OrderController::class, 'store']);
             Route::get('/{order_id}', [OrderController::class, 'show']);
             Route::post('/{order_id}/cancel', [OrderController::class, 'cancel']);
             Route::post('/{order_id}/confirm-received', [OrderController::class, 'confirmReceived']);
@@ -110,7 +134,7 @@ Route::prefix('v1')->group(function () {
     // PUBLIC ORDER CREATION (cho cả guest và user)
     Route::post('/orders', [OrderController::class, 'store']);
 
- 
+
 
     // ======================
     // ADMIN ROUTES (bây giờ nằm trong v1, yêu cầu auth:sanctum)
@@ -166,6 +190,25 @@ Route::prefix('v1')->group(function () {
             Route::get('/{promotion_id}', [PromotionController::class, 'show']);
             Route::put('/{promotion_id}', [PromotionController::class, 'update']);
             Route::put('/{promotion_id}/toggle-status', [PromotionController::class, 'toggleStatus']);
+        });
+
+        // Quản lý tin tức
+        Route::prefix('news')->group(function () {
+            Route::get('/', [NewsController::class, 'adminIndex']);          // Danh sách
+            Route::post('/', [NewsController::class, 'store']);              // Thêm bài viết
+            Route::get('/{id}', [NewsController::class, 'adminShow']);        // Chi tiết
+            Route::put('/{id}', [NewsController::class, 'update']);          // Cập nhật
+            Route::delete('/{id}', [NewsController::class, 'destroy']);      // Xóa
+            Route::put('/{id}/toggle-status', [NewsController::class, 'toggleStatus']); // Toggle status
+        });
+
+        // Quản lý liên hệ
+        Route::prefix('contacts')->group(function () {
+            Route::get('/', [ContactController::class, 'adminIndex']);       // Danh sách
+            Route::get('/{id}', [ContactController::class, 'adminShow']);    // Chi tiết
+            Route::put('/{id}/status', [ContactController::class, 'updateStatus']); // Cập nhật trạng thái
+            Route::delete('/{id}', [ContactController::class, 'destroy']);   // Xóa
+            Route::put('/{id}/spam', [ContactController::class, 'markAsSpam']); // Đánh dấu spam
         });
     });
 });

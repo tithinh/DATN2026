@@ -23,7 +23,6 @@
             />
             <span class="checkmark"></span>
             <span class="label-text">{{ cat.name }}</span>
-            <span class="count">({{ cat.products_count || cat.product_count || 0 }})</span>
           </label>
         </li>
       </ul>
@@ -32,20 +31,24 @@
     <!-- Price Filter -->
     <div class="filter-group" v-if="!loading">
       <h4 class="filter-group-title">Khoảng giá</h4>
+      
+      <!-- Range Slider -->
       <div class="price-range">
         <input 
           type="range" 
           :min="priceRange.min" 
           :max="priceRange.max" 
-          v-model="maxPrice" 
+          v-model.number="maxPrice" 
           class="range-slider" 
-          @input="emitFilter"
+          @input="onRangeChange"
         />
         <div class="price-labels">
           <span>{{ formatPrice(priceRange.min) }}</span>
           <span>{{ formatPrice(maxPrice) }}</span>
         </div>
       </div>
+      
+      <!-- Price Inputs -->
       <div class="price-inputs">
         <input 
           type="number" 
@@ -67,25 +70,6 @@
       </div>
     </div>
 
-    <!-- Brand Filter (tạm hard-code, có thể fetch sau) -->
-    <div class="filter-group" v-if="!loading">
-      <h4 class="filter-group-title">Thương hiệu</h4>
-      <ul class="filter-list">
-        <li v-for="brand in brands" :key="brand" class="filter-item">
-          <label class="filter-label">
-            <input 
-              type="checkbox" 
-              class="filter-checkbox" 
-              :value="brand" 
-              v-model="selectedBrands" 
-              @change="emitFilter"
-            />
-            <span class="checkmark"></span>
-            <span class="label-text">{{ brand }}</span>
-          </label>
-        </li>
-      </ul>
-    </div>
   </aside>
 </template>
 
@@ -99,9 +83,7 @@ const emit = defineEmits(['update:filter', 'clear-all'])
 // State
 const loading = ref(true)
 const categories = ref<any[]>([])
-const brands = ref<string[]>(['Apple', 'Samsung', 'Baseus', 'Anker', 'Xiaomi', 'Joyroom']) // tạm hard-code, có thể fetch sau
 const selectedCategories = ref<number[]>([])
-const selectedBrands = ref<string[]>([])
 const minPrice = ref<number | null>(null)
 const maxPrice = ref<number>(5000000)
 
@@ -118,22 +100,12 @@ onMounted(async () => {
 
     // 1. Lấy danh mục + số lượng sản phẩm
     const resCat = await api.get('/categories')
-    categories.value = resCat.data.map((cat: any) => ({
+    // API trả về { data: [...], total: ..., current_page: ... }
+    const cats = resCat.data.data || resCat.data || []
+    categories.value = cats.map((cat: any) => ({
       ...cat,
-      product_count: cat.products_count || cat.count || cat.product_count || 0
+      products_count: cat.products_count || 0
     }))
-
-    // 2. Lấy khoảng giá min/max (nếu backend có endpoint)
-    // Nếu chưa có, dùng giá trị mặc định hoặc tính từ API products
-    // Ví dụ endpoint giả định:
-    // const resPrice = await api.get('/products/price-range')
-    // priceRange.value = resPrice.data
-    // maxPrice.value = priceRange.value.max
-
-    // 3. Nếu muốn fetch brands động:
-    // const resProducts = await api.get('/products?per_page=100')
-    // const brandSet = new Set(resProducts.data.data.map((p: any) => p.brand).filter(Boolean))
-    // brands.value = Array.from(brandSet)
 
   } catch (err) {
     console.error('Lỗi tải dữ liệu bộ lọc:', err)
@@ -146,21 +118,24 @@ onMounted(async () => {
 const emitFilter = () => {
   emit('update:filter', {
     category_ids: selectedCategories.value,
-    brands: selectedBrands.value,
     min_price: minPrice.value,
     max_price: maxPrice.value > priceRange.value.max ? null : maxPrice.value
   })
 }
 
+// Handle range slider change
+const onRangeChange = () => {
+  emitFilter()
+}
+
 // Watch thay đổi để emit ngay
-watch([selectedCategories, selectedBrands, minPrice, maxPrice], () => {
+watch([selectedCategories, minPrice, maxPrice], () => {
   emitFilter()
 })
 
 // Clear all filters
 const clearAll = () => {
   selectedCategories.value = []
-  selectedBrands.value = []
   minPrice.value = null
   maxPrice.value = priceRange.value.max
   emit('clear-all')
@@ -176,14 +151,12 @@ const formatPrice = (price: number) => {
 
 
 <style scoped>
-/* Giữ nguyên toàn bộ style của bạn */
 .filter-loading {
   padding: 20px;
   text-align: center;
   color: #64748b;
   font-style: italic;
 }
-
 
 .filter-sidebar {
   background: #ffffff;
@@ -235,6 +208,8 @@ const formatPrice = (price: number) => {
   list-style: none;
   padding: 0;
   margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .filter-item {
@@ -300,7 +275,7 @@ const formatPrice = (price: number) => {
   font-size: 14px;
   outline: none;
   transition: border-color 0.3s;
-  width: 100%; /* Fix width */
+  width: 100%;
 }
 
 .price-input:focus { border-color: #ff6b35; }

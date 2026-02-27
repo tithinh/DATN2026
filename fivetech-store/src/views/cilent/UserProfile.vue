@@ -190,7 +190,7 @@
                   <div class="order-header">
                     <div class="order-id">
                       <span class="label">Mã đơn:</span>
-                      <span class="value">#{{ order.id }}</span>
+                      <span class="value">{{ order.order_code }}</span>
                     </div>
                     <span class="order-status" :class="order.status">{{ order.status_text }}</span>
                   </div>
@@ -225,7 +225,7 @@
                       <span class="value">{{ formatPrice(order.total) }}</span>
                     </div>
                     <div class="order-actions">
-                      <button class="action-btn outline" @click="viewOrderDetail(order.id)">Xem chi tiết</button>
+                      <button class="action-btn outline" @click="viewOrderDetail(order.order_code)">Xem chi tiết</button>
                       <button class="action-btn primary" v-if="order.status === 'shipping'">Theo dõi vận chuyển</button>
                     </div>
                   </div>
@@ -235,13 +235,107 @@
 
             <!-- Lịch sử mua hàng -->
             <div v-if="activeTab === 'history'" class="tab-panel">
-              <!-- ... giữ nguyên phần lịch sử, nhưng thay data bằng API nếu cần ... -->
-              <!-- Ví dụ: gọi API /orders?status=completed -->
+              <div class="panel-header">
+                <h2 class="panel-title">Lịch sử mua hàng</h2>
+                <p class="panel-desc">Xem lại các đơn hàng đã hoàn thành hoặc đã hủy</p>
+              </div>
+
+              <div v-if="loadingOrders" class="loading-state">
+                <div class="spinner"></div>
+                <p>Đang tải lịch sử...</p>
+              </div>
+
+              <div v-else-if="orderHistory.length === 0" class="empty-state">
+                <p>Bạn chưa có lịch sử mua hàng nào.</p>
+                <router-link to="/products" class="btn-primary">Tiếp tục mua sắm</router-link>
+              </div>
+
+              <div v-else class="orders-list">
+                <div class="order-card history" v-for="order in orderHistory" :key="order.id">
+                  <div class="order-header">
+                    <div class="order-id">
+                      <span class="label">Mã đơn:</span>
+                      <span class="value">{{ order.order_code }}</span>
+                    </div>
+                    <span class="order-status" :class="order.status">{{ order.status_text }}</span>
+                  </div>
+
+                  <div class="order-items">
+                    <div class="item" v-for="item in order.items" :key="item.id">
+                      <img :src="item.image || '/images/default-product.jpg'" :alt="item.name" class="item-image" />
+                      <div class="item-info">
+                        <h4 class="item-name">{{ item.name }}</h4>
+                        <p class="item-variant">{{ item.variant || 'Mặc định' }}</p>
+                      </div>
+                      <div class="item-qty">x{{ item.quantity }}</div>
+                      <div class="item-price">{{ formatPrice(item.price) }}</div>
+                    </div>
+                  </div>
+
+                  <div class="order-footer">
+                    <div class="order-total">
+                      <span class="label">Tổng tiền:</span>
+                      <span class="value">{{ formatPrice(order.total) }}</span>
+                    </div>
+                    <div class="order-actions">
+                      <button class="action-btn outline" @click="viewOrderDetail(order.order_code)">Xem chi tiết</button>
+                      <button v-if="order.status === 'delivered'" class="action-btn primary" @click="reorder(order)">Mua lại</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Sản phẩm yêu thích -->
             <div v-if="activeTab === 'wishlist'" class="tab-panel">
-              <!-- ... giữ nguyên phần wishlist, gọi API /wishlist ... -->
+              <div class="panel-header">
+                <h2 class="panel-title">Sản phẩm yêu thích</h2>
+                <p class="panel-desc">Danh sách sản phẩm bạn đã lưu</p>
+              </div>
+
+              <div v-if="loadingWishlist" class="loading-state">
+                <div class="spinner"></div>
+                <p>Đang tải wishlist...</p>
+              </div>
+
+              <div v-else-if="wishlistItems.length === 0" class="empty-state">
+                <p>Chưa có sản phẩm yêu thích nào.</p>
+                <router-link to="/products" class="btn-primary">Khám phá sản phẩm</router-link>
+              </div>
+
+              <div v-else class="wishlist-grid">
+                <div class="wishlist-item" v-for="item in wishlistItems" :key="item.wishlist_id">
+                  <router-link :to="`/products/${item.slug}`" class="wishlist-item-link">
+                    <div class="wishlist-item-image">
+                      <img :src="item.image || '/images/default-product.jpg'" :alt="item.name" />
+                    </div>
+                    <div class="wishlist-item-info">
+                      <h3 class="item-name">{{ item.name }}</h3>
+                      <div class="item-price">
+                        <span class="current-price">{{ formatPrice(item.final_price) }}</span>
+                        <span v-if="item.discount_price && item.discount_price < item.base_price" class="old-price">
+                          {{ formatPrice(item.base_price) }}
+                        </span>
+                      </div>
+                    </div>
+                  </router-link>
+                  <div class="wishlist-item-actions">
+                    <button class="add-to-cart-btn" @click="addToCartFromWishlist(item)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                      </svg>
+                      Thêm vào giỏ
+                    </button>
+                    <button class="remove-btn" @click="removeFromWishlist(item.product_id)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </main>
         </div>
@@ -261,6 +355,7 @@ const auth = useAuthStore()
 
 const activeTab = ref('personal')
 const loadingOrders = ref(false)
+const loadingWishlist = ref(false)
 const currentOrders = ref([])
 const orderHistory = ref([])
 const wishlistItems = ref([])
@@ -318,6 +413,53 @@ const viewOrderDetail = (orderId) => {
   router.push(`/orders/${orderId}`)
 }
 
+const reorder = (order) => {
+  // Chuyển hướng đến trang sản phẩm đầu tiên trong đơn hàng
+  if (order.items && order.items.length > 0) {
+    router.push(`/products/${order.items[0].product_id}`)
+  }
+}
+
+const addToCartFromWishlist = async (item) => {
+  try {
+    // Lấy variant đầu tiên nếu có
+    const variantId = item.variants?.[0]?.variant_id
+    if (!variantId) {
+      alert('Sản phẩm này chưa có biến thể')
+      return
+    }
+
+    await api.post('/cart/add', {
+      variant_id: variantId,
+      quantity: 1
+    })
+    alert('Đã thêm vào giỏ hàng!')
+  } catch (err) {
+    console.error('Add to cart failed:', err)
+    alert('Không thể thêm sản phẩm. Vui lòng thử lại!')
+  }
+}
+
+const removeFromWishlist = async (productId) => {
+  if (!confirm('Bạn có chắc muốn xóa sản phẩm này khỏi danh sách yêu thích?')) {
+    return
+  }
+
+  try {
+    await api.delete(`/wishlist/${productId}`)
+    // Cập nhật lại danh sách
+    wishlistItems.value = wishlistItems.value.filter(item => item.product_id !== productId)
+    alert('Đã xóa khỏi danh sách yêu thích!')
+  } catch (err) {
+    console.error('Remove from wishlist failed:', err)
+    alert('Không thể xóa sản phẩm. Vui lòng thử lại!')
+  }
+}
+
+const editAvatar = () => {
+  router.push('/profile/edit')
+}
+
 // Load data khi mount
 onMounted(async () => {
   if (!auth.isAuthenticated) {
@@ -326,6 +468,7 @@ onMounted(async () => {
   }
 
   loadingOrders.value = true
+  loadingWishlist.value = true
   try {
     // Lấy đơn hàng hiện tại (status pending/processing/shipping)
     const ordersRes = await api.get('/orders')
@@ -334,11 +477,12 @@ onMounted(async () => {
 
     // Lấy wishlist
     const wishlistRes = await api.get('/wishlist')
-    wishlistItems.value = wishlistRes.data || []
+    wishlistItems.value = wishlistRes.data?.data || wishlistRes.data || []
   } catch (err) {
     console.error('Load profile data failed:', err)
   } finally {
     loadingOrders.value = false
+    loadingWishlist.value = false
   }
 })
 </script>
@@ -352,5 +496,180 @@ onMounted(async () => {
   text-align: center;
   padding: 60px 0;
   color: #64748b;
+}
+
+/* Wishlist Grid Styles */
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.wishlist-item {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.wishlist-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.wishlist-item-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wishlist-item-image {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.wishlist-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wishlist-item-info {
+  padding: 16px;
+}
+
+.wishlist-item-info .item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wishlist-item-info .item-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wishlist-item-info .current-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff6b35;
+}
+
+.wishlist-item-info .old-price {
+  font-size: 13px;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.wishlist-item-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.add-to-cart-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-to-cart-btn:hover {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+}
+
+.remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.remove-btn:hover {
+  background: #fecaca;
+}
+
+/* History Order Styles */
+.order-card.history {
+  border-left: 4px solid #94a3b8;
+}
+
+.order-card.history .order-status.completed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.order-card.history .order-status.cancelled {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Spinner */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .wishlist-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .wishlist-item-info {
+    padding: 12px;
+  }
+  
+  .wishlist-item-info .item-name {
+    font-size: 13px;
+  }
+  
+  .wishlist-item-actions {
+    flex-direction: column;
+    padding: 0 12px 12px;
+  }
+  
+  .add-to-cart-btn {
+    width: 100%;
+  }
+  
+  .remove-btn {
+    width: 100%;
+  }
 }
 </style>

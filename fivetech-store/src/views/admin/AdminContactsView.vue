@@ -10,20 +10,25 @@
       <div class="toolbar-left">
         <div class="toolbar-search">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" v-model="searchQuery" placeholder="Tìm theo tên, email..." />
+          <input type="text" v-model="searchQuery" placeholder="Tìm theo tên, email..." @input="handleSearch" />
         </div>
-        <select class="toolbar-filter" v-model="filterStatus">
+        <select class="toolbar-filter" v-model="filterStatus" @change="handleFilter">
           <option value="">Tất cả trạng thái</option>
           <option value="pending">Chờ xử lý</option>
           <option value="replied">Đã phản hồi</option>
           <option value="spam">Spam</option>
         </select>
       </div>
-      <!-- No Add Button for Contacts -->
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu...</p>
     </div>
 
     <!-- Table -->
-    <div class="admin-card">
+    <div v-else class="admin-card">
       <div class="admin-table-wrapper">
         <table class="admin-table">
           <thead>
@@ -31,6 +36,7 @@
               <th>ID</th>
               <th>Khách hàng</th>
               <th>Email</th>
+              <th>Số điện thoại</th>
               <th>Chủ đề</th>
               <th>Ngày gửi</th>
               <th>Trạng thái</th>
@@ -38,16 +44,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="msg in filteredMessages" :key="msg.id">
+            <tr v-for="msg in messages" :key="msg.id">
               <td style="font-weight:600; color: var(--admin-text);">#{{ msg.id }}</td>
               <td style="font-weight:500; color: var(--admin-text);">{{ msg.name }}</td>
               <td>{{ msg.email }}</td>
+              <td>{{ msg.phone || '-' }}</td>
               <td>
-                <span class="role-badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24;">{{ msg.subject }}</span>
+                <span class="role-badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24;">{{ formatSubject(msg.subject) }}</span>
               </td>
-              <td style="color: var(--admin-text-soft);">{{ msg.date }}</td>
+              <td style="color: var(--admin-text-soft);">{{ formatDate(msg.created_at) }}</td>
               <td>
-                <span class="status-badge" :class="msg.statusClass">{{ msg.statusText }}</span>
+                <span class="status-badge" :class="getStatusClass(msg.status)">{{ getStatusText(msg.status) }}</span>
               </td>
               <td>
                 <div class="action-btns">
@@ -64,13 +71,30 @@
         </table>
       </div>
 
+      <!-- Empty State -->
+      <div v-if="!loading && !messages.length" class="empty-state">
+        <p>Chưa có liên hệ nào</p>
+      </div>
+
       <!-- Pagination -->
-      <div class="admin-pagination">
-        <div class="pagination-info">Hiển thị 1-{{ filteredMessages.length }} trên tổng số {{ messages.length }} liên hệ</div>
+      <div v-if="pagination.last_page > 1" class="admin-pagination">
+        <div class="pagination-info">Hiển thị {{ messages.length }} trên tổng số {{ pagination.total }} liên hệ</div>
         <div class="pagination-btns">
-          <button class="page-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-          <button class="page-btn active">1</button>
-          <button class="page-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+          <button class="page-btn" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button 
+            v-for="page in visiblePages" 
+            :key="page" 
+            class="page-btn" 
+            :class="{ active: page === pagination.current_page }"
+            @click="changePage(page)"
+          >
+            {{ page }}
+          </button>
+          <button class="page-btn" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -98,11 +122,15 @@
             </div>
             <div class="detail-row">
               <span class="label">Chủ đề:</span>
-              <span class="value">{{ currentMessage.subject }}</span>
+              <span class="value">{{ formatSubject(currentMessage.subject) }}</span>
             </div>
             <div class="detail-row">
               <span class="label">Ngày gửi:</span>
-              <span class="value">{{ currentMessage.date }}</span>
+              <span class="value">{{ formatDate(currentMessage.created_at) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Trạng thái:</span>
+              <span class="status-badge" :class="getStatusClass(currentMessage.status)">{{ getStatusText(currentMessage.status) }}</span>
             </div>
             <div class="detail-row full-width">
               <span class="label">Nội dung:</span>
@@ -123,90 +151,189 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getAdminContacts, updateContactStatus, deleteContact, markContactAsSpam } from '@/api'
 
+// State
+const messages = ref([])
+const loading = ref(true)
 const searchQuery = ref('')
 const filterStatus = ref('')
 const showModal = ref(false)
 const currentMessage = ref({})
 
-const messages = ref([
-  {
-    id: 1001,
-    name: 'Nguyễn Văn A',
-    email: 'nguyenvana@example.com',
-    phone: '0912345678',
-    subject: 'Bảo hành',
-    content: 'Sản phẩm tôi mua hôm qua bị lỗi màn hình, tôi muốn được bảo hành.',
-    date: '12/02/2026',
-    status: 'pending',
-    statusText: 'Chờ xử lý',
-    statusClass: 'pending'
-  },
-  {
-    id: 1002,
-    name: 'Trần Thị B',
-    email: 'tranthib@example.com',
-    phone: '0987654321',
-    subject: 'Đơn hàng',
-    content: 'Tôi muốn thay đổi địa chỉ giao hàng cho đơn #DH1234.',
-    date: '11/02/2026',
-    status: 'replied',
-    statusText: 'Đã phản hồi',
-    statusClass: 'completed'
-  },
-  {
-    id: 1003,
-    name: 'Lê Văn C',
-    email: 'levanc@example.com',
-    phone: '',
-    subject: 'Sản phẩm',
-    content: 'Khi nào thì sản phẩm iPhone 16 Pro Max có hàng lại?',
-    date: '10/02/2026',
-    status: 'pending',
-    statusText: 'Chờ xử lý',
-    statusClass: 'pending'
-  }
-])
-
-const filteredMessages = computed(() => {
-  return messages.value.filter(msg => {
-    const matchSearch = msg.name.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                      msg.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchStatus = filterStatus.value ? msg.status === filterStatus.value : true
-    return matchSearch && matchStatus
-  })
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0
 })
+
+// Computed
+const visiblePages = computed(() => {
+  const pages = []
+  const current = pagination.value.current_page
+  const last = pagination.value.last_page
+  const start = Math.max(1, current - 2)
+  const end = Math.min(last, current + 2)
+  
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
+// Methods
+const formatDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
+}
+
+const formatSubject = (subject) => {
+  const subjects = {
+    'order': 'Đơn hàng',
+    'product': 'Sản phẩm',
+    'warranty': 'Bảo hành',
+    'return': 'Đổi trả',
+    'other': 'Khác'
+  }
+  return subjects[subject] || subject || 'Khác'
+}
+
+const getStatusClass = (status) => {
+  const classes = {
+    'pending': 'pending',
+    'replied': 'completed',
+    'spam': 'cancelled'
+  }
+  return classes[status] || 'pending'
+}
+
+const getStatusText = (status) => {
+  const texts = {
+    'pending': 'Chờ xử lý',
+    'replied': 'Đã phản hồi',
+    'spam': 'Spam'
+  }
+  return texts[status] || 'Chờ xử lý'
+}
+
+const fetchMessages = async (page = 1) => {
+  loading.value = true
+  try {
+    const params = {
+      page,
+      per_page: 15,
+      search: searchQuery.value || undefined,
+      status: filterStatus.value || undefined
+    }
+    
+    const response = await getAdminContacts(params)
+    const data = response.data
+    
+    messages.value = data.data || data
+    pagination.value = {
+      current_page: data.current_page || 1,
+      last_page: data.last_page || 1,
+      total: data.total || data.length
+    }
+  } catch (error) {
+    console.error('Error fetching contacts:', error)
+    messages.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = () => {
+  pagination.value.current_page = 1
+  fetchMessages(1)
+}
+
+const handleFilter = () => {
+  pagination.value.current_page = 1
+  fetchMessages(1)
+}
+
+const changePage = (page) => {
+  if (page >= 1 && page <= pagination.value.last_page) {
+    fetchMessages(page)
+  }
+}
 
 const viewMessage = (msg) => {
   currentMessage.value = msg
   showModal.value = true
 }
 
-const deleteMessage = (id) => {
+const deleteMessage = async (id) => {
   if(confirm('Bạn có chắc muốn xóa liên hệ này?')) {
-    messages.value = messages.value.filter(m => m.id !== id)
+    try {
+      await deleteContact(id)
+      fetchMessages(pagination.value.current_page)
+    } catch (error) {
+      console.error('Error deleting contact:', error)
+      alert('Có lỗi xảy ra khi xóa liên hệ')
+    }
   }
 }
 
-const markAsSpam = () => {
-  // Logic mark as spam
-  const index = messages.value.findIndex(m => m.id === currentMessage.value.id)
-  if (index !== -1) {
-    messages.value[index].status = 'spam'
-    messages.value[index].statusText = 'Spam'
-    messages.value[index].statusClass = 'cancelled'
+const markAsSpam = async () => {
+  try {
+    await markContactAsSpam(currentMessage.value.id)
+    // Update local state
+    const index = messages.value.findIndex(m => m.id === currentMessage.value.id)
+    if (index !== -1) {
+      messages.value[index].status = 'spam'
+    }
+    closeModal()
+  } catch (error) {
+    console.error('Error marking as spam:', error)
+    alert('Có lỗi xảy ra')
   }
-  closeModal()
 }
 
 const closeModal = () => {
   showModal.value = false
 }
+
+// Lifecycle
+onMounted(() => {
+  fetchMessages()
+})
 </script>
 
 <style scoped>
-/* Reuse modal styles */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--admin-text-muted);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--admin-border);
+  border-top-color: #ff6b35;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--admin-text-muted);
+}
+
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -290,5 +417,21 @@ const closeModal = () => {
   min-height: 100px;
   white-space: pre-wrap;
   color: var(--admin-text-soft);
+}
+
+/* Status Badges */
+.status-badge.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.status-badge.completed {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.status-badge.cancelled {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 </style>

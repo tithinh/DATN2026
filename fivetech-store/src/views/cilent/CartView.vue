@@ -250,9 +250,8 @@ const goToLogin = () => {
 }
 
 onMounted(async () => {
-  if (auth.isAuthenticated) {
-    await cartStore.fetchCart()
-  }
+  // Luôn fetch cart (cho cả user và guest)
+  await cartStore.fetchCart()
 })
 </script>
 

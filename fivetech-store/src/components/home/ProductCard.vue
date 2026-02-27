@@ -2,7 +2,6 @@
   <article class="product-card">
     <!-- Badge -->
     <span class="product-badge badge-hot">
-      <slot name="badge">Hot</slot>
     </span>
 
     <!-- Product Image -->

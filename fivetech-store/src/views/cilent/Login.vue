@@ -1,7 +1,7 @@
 <template>
   <div class="auth-page">
     <div class="auth-container">
-      <!-- Left Side - Branding (giữ nguyên) -->
+      <!-- Left Side - Branding -->
       <div class="auth-branding">
         <div class="brand-content">
           <div class="brand-logo">
@@ -51,7 +51,7 @@
           <h2 class="form-title">Đăng nhập</h2>
           <p class="form-subtitle">Nhập thông tin tài khoản của bạn</p>
 
-          <!-- Hiển thị lỗi -->
+          <!-- Error Message -->
           <div v-if="errorMessage" class="error-message">
             {{ errorMessage }}
           </div>
@@ -110,7 +110,7 @@
                 <input type="checkbox" v-model="rememberMe" :disabled="loading" />
                 <span class="checkbox-label">Ghi nhớ đăng nhập</span>
               </label>
-              <a href="/forgot-password" class="forgot-link">Quên mật khẩu?</a>
+              <router-link to="/forgot-password" class="forgot-link">Quên mật khẩu?</router-link>
             </div>
 
             <button type="submit" class="btn-submit" :disabled="loading">
@@ -123,7 +123,7 @@
           </div>
 
           <div class="social-login">
-            <button class="social-btn google-btn">
+            <button class="social-btn google-btn" @click="handleGoogleLogin" :disabled="loading">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -132,7 +132,7 @@
               </svg>
               <span>Google</span>
             </button>
-            <button class="social-btn facebook-btn">
+            <button class="social-btn facebook-btn" @click="handleFacebookLogin" :disabled="loading">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
               </svg>
@@ -142,7 +142,7 @@
 
           <p class="auth-switch">
             Chưa có tài khoản? 
-            <a href="/register" class="switch-link">Đăng ký ngay</a>
+            <router-link to="/register" class="switch-link">Đăng ký ngay</router-link>
           </p>
         </div>
       </div>
@@ -151,9 +151,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api'
+import api, { redirectToGoogle, redirectToFacebook, handleSocialCallback } from '@/api'
 
 const email = ref('')
 const password = ref('')
@@ -164,19 +164,35 @@ const errorMessage = ref('')
 
 const router = useRouter()
 
-const handleLogin = async () => {
-  console.log('Login payload:', {
-    email: email.value.trim(),
-    password: password.value,
-    remember: rememberMe.value,
-  });
+// Handle social login callback
+onMounted(async () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  if (urlParams.has('token') || urlParams.has('message')) {
+    loading.value = true
+    try {
+      const success = await handleSocialCallback()
+      if (success) {
+        alert('Đăng nhập thành công!')
+        router.push('/')
+      } else {
+        const message = urlParams.get('message')
+        if (message) {
+          errorMessage.value = decodeURIComponent(message)
+        }
+      }
+    } catch (err) {
+      errorMessage.value = 'Đăng nhập thất bại. Vui lòng thử lại.'
+    } finally {
+      loading.value = false
+    }
+  }
+})
 
+const handleLogin = async () => {
   errorMessage.value = ''
   loading.value = true
 
   try {
-    console.log('Sending login request...') // debug
-
     const response = await api.post('/login', {
       email: email.value.trim(),
       password: password.value,
@@ -184,7 +200,6 @@ const handleLogin = async () => {
     })
 
     const data = response.data
-    console.log('Login success:', data) // debug
 
     if (data.token) {
       localStorage.setItem('token', data.token)
@@ -192,17 +207,12 @@ const handleLogin = async () => {
       api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
     }
 
-    // Thay alert bằng toast nếu có thư viện
     alert(data.message || 'Đăng nhập thành công!')
-
     router.push('/')
 
   } catch (err) {
-    console.error('Login error:', err)
-
     if (err.response) {
       const { status, data } = err.response
-
       if (status === 401) {
         errorMessage.value = data.message || 'Email hoặc mật khẩu không chính xác.'
       } else if (status === 422) {
@@ -220,6 +230,14 @@ const handleLogin = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleGoogleLogin = () => {
+  redirectToGoogle()
+}
+
+const handleFacebookLogin = () => {
+  redirectToFacebook()
 }
 </script>
 
@@ -241,7 +259,7 @@ const handleLogin = async () => {
 }
 
 .back-link:hover {
-  color: #3b82f6; /* màu primary của bạn */
+  color: #3b82f6;
 }
 
 .back-link svg {
@@ -249,9 +267,9 @@ const handleLogin = async () => {
 }
 
 .back-link:hover svg {
-  transform: translateX(-4px); /* hiệu ứng mũi tên lùi lại khi hover */
+  transform: translateX(-4px);
 }
-/* Thêm style cho error message */
+
 .error-message {
   background: #fee2e2;
   color: #dc2626;
@@ -261,7 +279,6 @@ const handleLogin = async () => {
   font-size: 14px;
   text-align: center;
 }
-
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -519,9 +536,14 @@ const handleLogin = async () => {
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
 }
 
-.btn-submit:hover {
+.btn-submit:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .divider {
@@ -566,9 +588,14 @@ const handleLogin = async () => {
   transition: all 0.3s ease;
 }
 
-.social-btn:hover {
+.social-btn:hover:not(:disabled) {
   border-color: #cbd5e1;
   background: #f8fafc;
+}
+
+.social-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .auth-switch {

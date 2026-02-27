@@ -14,12 +14,27 @@
             <h2 class="section-title">Phụ kiện bán chạy</h2>
             <p class="section-subtitle">Sản phẩm được khách hàng yêu thích nhất</p>
           </div>
-          <router-link to="/products" class="view-all-link">Xem tất cả →</router-link>
+          <div class="view-more-group">
+            <button 
+              v-if="bestSellers.length > 4 && displayedBestSellers === 4"
+              class="view-more-btn" 
+              @click="displayedBestSellers = 8"
+            >
+              Xem thêm
+            </button>
+            <button 
+              v-if="displayedBestSellers === 8"
+              class="view-less-btn" 
+              @click="displayedBestSellers = 4"
+            >
+              Thu gọn
+            </button>
+          </div>
         </div>
 
         <div class="products-grid" v-if="bestSellers.length">
           <router-link
-            v-for="product in bestSellers"
+            v-for="product in bestSellers.slice(0, displayedBestSellers)"
             :key="product.product_id"
             :to="`/products/${product.slug}`"
             class="product-card-link"
@@ -27,8 +42,8 @@
             <article class="product-card">
               <span class="product-badge badge-hot">Hot</span>
               <div class="product-image-wrapper">
-                <img
-                  :src="product.variants?.[0]?.image_urls?.[0] || 'https://via.placeholder.com/400?text=' + product.name"
+                <img 
+                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -53,7 +68,12 @@
                   <span class="stars">★★★★★</span>
                   <span class="review-count">(128)</span>
                 </div>
-                <button class="add-to-cart-btn" @click.stop="addToCart(product)">Thêm vào giỏ</button>
+                <button 
+                  class="add-to-cart-btn" 
+                  @click.stop="addToCart(product)"
+                >
+                  Xem chi tiết
+                </button>
               </div>
             </article>
           </router-link>
@@ -74,12 +94,27 @@
             <h2 class="section-title">Phụ kiện mới về</h2>
             <p class="section-subtitle">Cập nhật những sản phẩm mới nhất</p>
           </div>
-          <router-link to="/products?filter=new" class="view-all-link">Xem tất cả →</router-link>
+          <div class="view-more-group">
+            <button 
+              v-if="newArrivals.length > 4 && displayedNewArrivals === 4"
+              class="view-more-btn" 
+              @click="displayedNewArrivals = 8"
+            >
+              Xem thêm
+            </button>
+            <button 
+              v-if="displayedNewArrivals === 8"
+              class="view-less-btn" 
+              @click="displayedNewArrivals = 4"
+            >
+              Thu gọn
+            </button>
+          </div>
         </div>
 
         <div class="products-grid" v-if="newArrivals.length">
           <router-link
-            v-for="product in newArrivals"
+            v-for="product in newArrivals.slice(0, displayedNewArrivals)"
             :key="product.product_id"
             :to="`/products/${product.slug}`"
             class="product-card-link"
@@ -87,8 +122,8 @@
             <article class="product-card">
               <span class="product-badge badge-new">New</span>
               <div class="product-image-wrapper">
-                <img
-                  :src="product.variants?.[0]?.image_urls?.[0] || 'https://via.placeholder.com/400?text=' + product.name"
+                <img 
+                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -99,7 +134,12 @@
                   <span class="current-price">{{ formatPrice(product.discount_price || product.base_price) }}đ</span>
                 </div>
                 <div class="product-rating"><span class="stars">★★★★★</span><span class="review-count">(12)</span></div>
-                <button class="add-to-cart-btn" @click.stop="addToCart(product)">Thêm vào giỏ</button>
+                <button 
+                  class="add-to-cart-btn" 
+                  @click.stop="addToCart(product)"
+                >
+                  Xem chi tiết
+                </button>
               </div>
             </article>
           </router-link>
@@ -134,12 +174,27 @@
             <h2 class="section-title">🔥 Phụ kiện khuyến mãi</h2>
             <p class="section-subtitle">Giảm giá sốc - Số lượng có hạn</p>
           </div>
-          <router-link to="/promotions" class="view-all-link">Xem tất cả →</router-link>
+          <div class="view-more-group">
+            <button 
+              v-if="onSale.length > 4 && displayedOnSale === 4"
+              class="view-more-btn" 
+              @click="displayedOnSale = 8"
+            >
+              Xem thêm
+            </button>
+            <button 
+              v-if="displayedOnSale === 8"
+              class="view-less-btn" 
+              @click="displayedOnSale = 4"
+            >
+              Thu gọn
+            </button>
+          </div>
         </div>
 
         <div class="products-grid" v-if="onSale.length">
           <router-link
-            v-for="product in onSale"
+            v-for="product in onSale.slice(0, displayedOnSale)"
             :key="product.product_id"
             :to="`/products/${product.slug}`"
             class="product-card-link"
@@ -147,8 +202,8 @@
             <article class="product-card">
               <span class="product-badge badge-sale">-{{ Math.round((1 - (product.discount_price / product.base_price)) * 100) }}%</span>
               <div class="product-image-wrapper">
-                <img
-                  :src="product.variants?.[0]?.image_urls?.[0] || 'https://via.placeholder.com/400?text=' + product.name"
+                <img 
+                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -160,7 +215,12 @@
                   <span class="old-price">{{ formatPrice(product.base_price) }}đ</span>
                 </div>
                 <div class="product-rating"><span class="stars">★★★★★</span><span class="review-count">(56)</span></div>
-                <button class="add-to-cart-btn" @click.stop="addToCart(product)">Thêm vào giỏ</button>
+                <button 
+                  class="add-to-cart-btn" 
+                  @click.stop="addToCart(product)"
+                >
+                  Xem chi tiết
+                </button>
               </div>
             </article>
           </router-link>
@@ -200,7 +260,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api'  // axios instance với baseURL + interceptor token
+import api from '@/api'
 
 import HomeHeader from '@/components/home/HomeHeader.vue'
 import HomeHero from '@/components/home/HomeHero.vue'
@@ -213,9 +273,14 @@ import HomeFooter from '@/components/home/HomeFooter.vue'
 const bestSellers = ref([])
 const newArrivals = ref([])
 const onSale = ref([])
-const wishlist = ref([]) // array IDs sản phẩm yêu thích
+const wishlist = ref([])
 const loading = ref(true)
 const error = ref(null)
+
+// Số lượng hiển thị ban đầu và khi "Xem thêm"/"Thu gọn"
+const displayedBestSellers = ref(4)
+const displayedNewArrivals = ref(4)
+const displayedOnSale = ref(4)
 
 // Helpers
 const formatPrice = (price) => {
@@ -245,52 +310,57 @@ const toggleWishlist = async (productId) => {
 }
 
 const addToCart = async (product) => {
-  if (!localStorage.getItem('token')) {
-    alert('Vui lòng đăng nhập để thêm vào giỏ!')
-    return router.push('/login')
-  }
-
+  // Không redirect, chỉ thêm giỏ hàng và thông báo
   try {
-    // Gọi CSRF trước POST
+    // Gọi CSRF trước POST (nếu backend dùng Sanctum)
     await api.get('/sanctum/csrf-cookie')
 
     const variant = product.variants?.[0]
-    if (!variant) return alert('Sản phẩm không có biến thể khả dụng')
+    if (!variant?.variant_id) {
+      return alert('Sản phẩm này chưa có biến thể khả dụng!')
+    }
 
-    await api.post('/cart/add', {
+    const payload = {
       variant_id: variant.variant_id,
       quantity: 1
-    })
+    }
 
-    alert('Đã thêm vào giỏ hàng!')
+    await api.post('/cart/add', payload)
+
+    alert('Đã thêm vào giỏ hàng thành công!')
   } catch (err) {
-    console.error(err)
+    console.error('Lỗi thêm giỏ hàng:', err)
+
+    if (!localStorage.getItem('token')) {
+      alert('Vui lòng đăng nhập để thêm vào giỏ!')
+      return router.push('/login')
+    }
+
     if (err.response?.status === 419 || err.response?.data?.message?.includes('CSRF')) {
-      alert('CSRF token không hợp lệ. Vui lòng thử lại.')
+      alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang!')
+    } else if (err.response?.status === 422) {
+      alert(err.response.data.message || 'Dữ liệu không hợp lệ!')
     } else {
-      alert('Có lỗi xảy ra')
+      alert('Không thể thêm sản phẩm. Vui lòng thử lại!')
     }
   }
 }
+
 // Fetch data khi mount
 onMounted(async () => {
   loading.value = true
   error.value = null
 
   try {
-    // Fetch best sellers
     const resBest = await api.get('/products', { params: { filter: 'hot', per_page: 8 } })
     bestSellers.value = resBest.data.data || resBest.data
 
-    // New arrivals
     const resNew = await api.get('/products', { params: { filter: 'new', per_page: 8 } })
     newArrivals.value = resNew.data.data || resNew.data
 
-    // On sale
     const resSale = await api.get('/products', { params: { filter: 'sale', per_page: 8 } })
     onSale.value = resSale.data.data || resSale.data
 
-    // Fetch wishlist nếu đã login
     if (localStorage.getItem('token')) {
       const resWish = await api.get('/wishlist')
       wishlist.value = resWish.data.map(item => item.product_id)
@@ -307,6 +377,31 @@ const router = useRouter()
 </script>
 
 <style scoped>
+/* Nút "Xem thêm" và "Thu gọn" */
+.view-more-btn,
+.view-less-btn {
+  background: #ff6b35;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.view-more-btn:hover,
+.view-less-btn:hover {
+  background: #e55f2e;
+  transform: translateY(-2px);
+}
+
+.view-more-group {
+  display: flex;
+  gap: 10px;
+}
+
 /* ================= IMPORT GOOGLE FONTS ================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -517,7 +612,6 @@ const router = useRouter()
 /* Đảm bảo nút con không bị ảnh hưởng */
 .add-to-cart-btn,
 .wishlist-btn {
-  position: relative;
   z-index: 10;
 }
 </style>

@@ -10,10 +10,24 @@ class Order extends Model
     use HasFactory;
 
     protected $primaryKey = 'order_id';
-
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $fillable = [
-        'user_id', 'promo_id', 'total_amount', 'discount_amount',
-        'final_amount', 'status', 'payment_method', 'shipping_address', 'note',
+        'user_id',
+        'order_code',
+        'promo_id',
+        'discount_amount',
+        'final_amount',
+        'total_amount',
+        'status',
+        'shipping_method',
+        'payment_method',
+        'note',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
+        'customer_address',
+        'customer_district',
     ];
 
     protected $casts = [

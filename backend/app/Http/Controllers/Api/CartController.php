@@ -12,19 +12,27 @@ use Illuminate\Support\Str;
 class CartController extends Controller
 {
     /**
-     * Lấy danh sách giỏ hàng của user hiện tại (hoặc guest qua session)
+     * Lấy danh sách giỏ hàng của user hiện tại (hoặc guest với user_id = 1)
      */
     public function index(Request $request)
     {
         $user = Auth::guard('sanctum')->user();
+
+        // Lấy user_id từ header hoặc query param (cho guest = 1)
+        $guestUserId = $request->header('X-Guest-User-Id') ?? $request->query('guest_user_id');
 
         if ($user) {
             // User đã đăng nhập: lấy theo user_id
             $items = CartItem::with(['product', 'variant'])
                 ->where('user_id', $user->id)
                 ->get();
+        } elseif ($guestUserId) {
+            // Guest với user_id = 1: lấy theo user_id
+            $items = CartItem::with(['product', 'variant'])
+                ->where('user_id', $guestUserId)
+                ->get();
         } else {
-            // Guest: lấy theo session_id
+            // Fallback: lấy theo session_id
             $sessionId = $request->session()->getId();
             $items = CartItem::with(['product', 'variant'])
                 ->where('session_id', $sessionId)
@@ -45,61 +53,67 @@ class CartController extends Controller
     }
 
     /**
-     * Thêm sản phẩm vào giỏ (hỗ trợ cả user và guest)
+     * Thêm sản phẩm vào giỏ (hỗ trợ cả user và guest với user_id = 1)
      */
     public function add(Request $request)
-{
-    $validated = $request->validate([
-        'variant_id' => 'required|exists:product_variants,variant_id',
-        'quantity'   => 'required|integer|min:1',
-    ]);
+    {
+        $validated = $request->validate([
+            'variant_id' => 'required|exists:product_variants,variant_id',
+            'quantity'   => 'required|integer|min:1',
+        ]);
 
-    $variant = ProductVariant::findOrFail($validated['variant_id']);
+        $variant = ProductVariant::findOrFail($validated['variant_id']);
 
-    // Kiểm tra tồn kho
-    if ($validated['quantity'] > $variant->stock) {
-        return response()->json(['message' => 'Số lượng vượt quá tồn kho'], 422);
+        // Kiểm tra tồn kho
+        if ($validated['quantity'] > $variant->stock) {
+            return response()->json(['message' => 'Số lượng vượt quá tồn kho'], 422);
+        }
+
+        // Xác định user_id
+        $user = Auth::guard('sanctum')->user();
+        $guestUserId = $request->header('X-Guest-User-Id') ?? $request->query('guest_user_id');
+
+        // Sử dụng user_id từ auth hoặc guest (mặc định = 1)
+        $userId = $user ? $user->id : ($guestUserId ?? 1);
+
+        CartItem::create([
+            'user_id'    => $userId,
+            'product_id' => $variant->product_id,
+            'variant_id' => $validated['variant_id'],
+            'quantity'   => $validated['quantity'],
+            'price'      => $variant->price,
+        ]);
+
+        return response()->json(['message' => 'Đã thêm vào giỏ hàng']);
     }
-
-    CartItem::create([
-        'user_id'    => Auth::id(),
-        'product_id' => $variant->product_id,
-        'variant_id' => $validated['variant_id'],
-        'quantity'   => $validated['quantity'],
-        'price'      => $variant->price, // hoặc tính giá động
-    ]);
-
-    return response()->json(['message' => 'Đã thêm vào giỏ hàng']);
-}
 
     /**
      * Cập nhật số lượng sản phẩm trong giỏ
      */
     public function update(Request $request)
-{
-    $validated = $request->validate([
-        'id'         => 'required|exists:cart_items,id',
-        'quantity'   => 'required|integer|min:1',           // chỉ yêu cầu min:1, không giới hạn max
-        'variant_id' => 'nullable|exists:product_variants,variant_id', // hoặc tên primary key thực tế
-    ]);
+    {
+        $validated = $request->validate([
+            'id'         => 'required|exists:cart_items,id',
+            'quantity'   => 'required|integer|min:1',
+            'variant_id' => 'nullable|exists:product_variants,variant_id',
+        ]);
 
-    $cartItem = CartItem::findOrFail($validated['id']);
-    $user = Auth::guard('sanctum')->user();
+        $cartItem = CartItem::findOrFail($validated['id']);
 
-    // Cập nhật số lượng và variant_id (nếu gửi)
-    $cartItem->update([
-        'quantity'   => $validated['quantity'],
-        'variant_id' => $validated['variant_id'] ?? $cartItem->variant_id, // giữ nguyên nếu không gửi
-    ]);
+        // Cập nhật số lượng và variant_id (nếu gửi)
+        $cartItem->update([
+            'quantity'   => $validated['quantity'],
+            'variant_id' => $validated['variant_id'] ?? $cartItem->variant_id,
+        ]);
 
-    // Tùy chọn: reload item với quan hệ để trả về thông tin đầy đủ
-    $cartItem->load(['variant', 'variant.product']);
+        // Tùy chọn: reload item với quan hệ để trả về thông tin đầy đủ
+        $cartItem->load(['variant', 'variant.product']);
 
-    return response()->json([
-        'message' => 'Cập nhật số lượng thành công',
-        'item'    => $cartItem,
-    ]);
-}
+        return response()->json([
+            'message' => 'Cập nhật số lượng thành công',
+            'item'    => $cartItem,
+        ]);
+    }
 
     /**
      * Xóa một sản phẩm khỏi giỏ

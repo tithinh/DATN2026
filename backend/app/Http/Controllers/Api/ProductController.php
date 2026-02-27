@@ -39,11 +39,17 @@ class ProductController extends Controller
     }
 
     if ($request->filled('min_price')) {
-        $query->where('base_price', '>=', $request->min_price);
+        $query->whereRaw(
+            'COALESCE(discount_price, base_price) >= ?',
+            [$request->min_price]
+        );
     }
 
     if ($request->filled('max_price')) {
-        $query->where('base_price', '<=', $request->max_price);
+        $query->whereRaw(
+            'COALESCE(discount_price, base_price) <= ?',
+            [$request->max_price]
+        );
     }
 
     /* ================= SEARCH ================= */
@@ -61,17 +67,21 @@ class ProductController extends Controller
     $sort = $request->input('sort', 'newest');
     switch ($sort) {
         case 'price_asc':
-            $query->orderBy('base_price', 'asc');
+            $query->orderByRaw('COALESCE(discount_price, base_price) ASC');
             break;
+
         case 'price_desc':
-            $query->orderBy('base_price', 'desc');
+            $query->orderByRaw('COALESCE(discount_price, base_price) DESC');
             break;
+
         case 'bestseller':
             $query->orderBy('likes_count', 'desc');
             break;
+
         case 'rating':
             $query->orderBy('average_rating', 'desc');
             break;
+
         case 'newest':
         default:
             $query->orderBy('created_at', 'desc');

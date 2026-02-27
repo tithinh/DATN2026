@@ -31,6 +31,31 @@ const publicRoutes = [
         component: () => import('@/views/cilent/UserProfile.vue'),
         meta: { title: 'Tài khoản của tôi' }
   },
+  {
+        path: '/profile/edit',
+        name: 'ProfileEdit',
+        component: () => import('@/views/cilent/ProfileEdit.vue'),
+        meta: { title: 'Chỉnh sửa thông tin' }
+  },
+  {
+        path: '/profile/change-password',
+        name: 'ChangePassword',
+        component: () => import('@/views/cilent/ChangePassword.vue'),
+        meta: { title: 'Đổi mật khẩu' }
+  },
+  {
+        path: '/forgot-password',
+        name: 'ForgotPassword',
+        component: () => import('@/views/cilent/ForgotPassword.vue'),
+        meta: { title: 'Quên mật khẩu', guestOnly: true }
+  },
+  {
+        path: '/reset-password/:token',
+        name: 'ResetPassword',
+        component: () => import('@/views/cilent/ResetPassword.vue'),
+        props: true,
+        meta: { title: 'Đặt lại mật khẩu', guestOnly: true }
+  },
   // Other pages use MainLayout
   {
     path: '/',
@@ -66,6 +91,14 @@ const publicRoutes = [
         component: () => import('@/views/cilent/News.vue'),
         meta: { title: 'Tin tức & Bài viết' }
       },
+      // Chi tiết tin tức - phải đặt SAU danh sách news
+      {
+        path: 'news/:slug',
+        name: 'NewsDetail',
+        component: () => import('@/views/cilent/NewsDetail.vue'),
+        props: true,
+        meta: { title: 'Chi tiết tin tức' }
+      },
       {
         path: 'contact',
         name: 'Contact',
@@ -73,7 +106,8 @@ const publicRoutes = [
         meta: { title: 'Liên hệ' }
       },
       { path: 'checkout', name: 'Checkout', component: () => import('@/views/cilent/CheckoutView.vue'), meta: { title: 'Thanh toán' } },
-      { path: 'order-success', name: 'OrderSuccess', component: () => import('@/views/cilent/OrderSuccess.vue'), meta: { title: 'Đặt hàng thành công' } }
+      { path: 'order-success', name: 'OrderSuccess', component: () => import('@/views/cilent/OrderSuccess.vue'), meta: { title: 'Đặt hàng thành công' } },
+      { path: 'orders/:id', name: 'OrderDetail', component: () => import('@/views/cilent/OrderDetail.vue'), meta: { title: 'Chi tiết đơn hàng' } }
     ]
   }
 ]

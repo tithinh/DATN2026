@@ -1,9 +1,10 @@
 <template>
   <div class="flex gap-6 bg-white p-6 rounded-xl shadow">
-    <img
-      :src="item.variant.image_urls?.[0] || 'https://via.placeholder.com/120'"
-      class="w-32 h-32 object-cover rounded-lg"
-    />
+    <img 
+                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                  :alt="product.name"
+                  class="product-image"
+                />
 
     <div class="flex-1">
       <h3 class="font-semibold text-lg mb-2">

@@ -39,7 +39,10 @@ class Admin extends Authenticatable
     {
         $this->attributes['password_hash'] = bcrypt($value);
     }
-
+    public function getAuthPassword()
+    {
+        return $this->password_hash;
+    }
     // Kiểm tra password
     public function checkPassword($password)
     {

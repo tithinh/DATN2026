@@ -15,13 +15,18 @@
       </div>
     </div>
 
-    <!-- Checkout Steps -->
+    <!-- Error Message -->
+    <div v-if="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Checkout Content -->
     <div class="checkout-content">
       <div class="container">
         <div class="checkout-steps">
           <div class="step-item completed">
             <span class="step-number">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
             <span class="step-label">Giỏ hàng</span>
           </div>
@@ -45,7 +50,7 @@
             <div class="checkout-section">
               <h3 class="checkout-section-title">
                 <span class="section-icon info-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </span>
                 Thông tin người nhận
               </h3>
@@ -58,8 +63,10 @@
                     class="form-input" 
                     placeholder="Nguyễn Văn A" 
                     v-model="customerInfo.name" 
+                    :class="{ 'input-error': errors['customer_info.name'] }"
                     :disabled="loading"
                   />
+                  <span v-if="errors['customer_info.name']" class="error-text">{{ errors['customer_info.name'][0] }}</span>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Số điện thoại <span class="required">*</span></label>
@@ -68,8 +75,10 @@
                     class="form-input" 
                     placeholder="0912 345 678" 
                     v-model="customerInfo.phone" 
+                    :class="{ 'input-error': errors['customer_info.phone'] }"
                     :disabled="loading"
                   />
+                  <span v-if="errors['customer_info.phone']" class="error-text">{{ errors['customer_info.phone'][0] }}</span>
                 </div>
               </div>
 
@@ -81,34 +90,10 @@
                     class="form-input" 
                     placeholder="email@example.com" 
                     v-model="customerInfo.email" 
+                    :class="{ 'input-error': errors['customer_info.email'] }"
                     :disabled="loading"
                   />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Tỉnh / Thành phố <span class="required">*</span></label>
-                  <select class="form-input form-select" v-model="customerInfo.city" :disabled="loading">
-                    <option value="">Chọn tỉnh/thành phố</option>
-                    <!-- Thay bằng API lấy tỉnh/thành nếu có -->
-                    <option value="hanoi">Hà Nội</option>
-                    <option value="hcm">TP. Hồ Chí Minh</option>
-                    <option value="danang">Đà Nẵng</option>
-                    <option value="haiphong">Hải Phòng</option>
-                    <option value="cantho">Cần Thơ</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Quận / Huyện <span class="required">*</span></label>
-                  <select class="form-input form-select" v-model="customerInfo.district" :disabled="loading">
-                    <option value="">Chọn quận/huyện</option>
-                    <!-- Có thể load động theo city -->
-                    <option value="q1">Quận 1</option>
-                    <option value="q2">Quận 2</option>
-                    <option value="bthanh">Bình Thạnh</option>
-                    <option value="govap">Gò Vấp</option>
-                  </select>
+                  <span v-if="errors['customer_info.email']" class="error-text">{{ errors['customer_info.email'][0] }}</span>
                 </div>
               </div>
 
@@ -120,71 +105,19 @@
                     class="form-input" 
                     placeholder="Số nhà, tên đường, phường/xã" 
                     v-model="customerInfo.address" 
+                    :class="{ 'input-error': errors['customer_info.address'] }"
                     :disabled="loading"
                   />
+                  <span v-if="errors['customer_info.address']" class="error-text">{{ errors['customer_info.address'][0] }}</span>
                 </div>
               </div>
             </div>
-
-            <!-- Shipping Method -->
-            <!-- <div class="checkout-section">
-              <h3 class="checkout-section-title">
-                <span class="section-icon shipping-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                </span>
-                Phương thức vận chuyển
-              </h3>
-
-              <div class="shipping-methods">
-                <label 
-                  class="shipping-option" 
-                  :class="{ selected: selectedShipping === 'standard' }"
-                  @click="selectedShipping = 'standard'"
-                >
-                  <input type="radio" name="shipping" value="standard" v-model="selectedShipping" />
-                  <span class="shipping-radio"></span>
-                  <div class="shipping-details">
-                    <div class="shipping-name">Giao hàng tiêu chuẩn</div>
-                    <div class="shipping-desc">3-5 ngày làm việc</div>
-                  </div>
-                  <span class="shipping-price free">Miễn phí</span>
-                </label>
-
-                <label 
-                  class="shipping-option" 
-                  :class="{ selected: selectedShipping === 'express' }"
-                  @click="selectedShipping = 'express'"
-                >
-                  <input type="radio" name="shipping" value="express" v-model="selectedShipping" />
-                  <span class="shipping-radio"></span>
-                  <div class="shipping-details">
-                    <div class="shipping-name">Giao hàng nhanh</div>
-                    <div class="shipping-desc">1-2 ngày làm việc</div>
-                  </div>
-                  <span class="shipping-price">30.000đ</span>
-                </label>
-
-                <label 
-                  class="shipping-option" 
-                  :class="{ selected: selectedShipping === 'same-day' }"
-                  @click="selectedShipping = 'same-day'"
-                >
-                  <input type="radio" name="shipping" value="same-day" v-model="selectedShipping" />
-                  <span class="shipping-radio"></span>
-                  <div class="shipping-details">
-                    <div class="shipping-name">Giao trong ngày</div>
-                    <div class="shipping-desc">Nhận hàng trong 2-4 giờ (nội thành)</div>
-                  </div>
-                  <span class="shipping-price">50.000đ</span>
-                </label>
-              </div>
-            </div> -->
 
             <!-- Payment Method -->
             <div class="checkout-section">
               <h3 class="checkout-section-title">
                 <span class="section-icon payment-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                 </span>
                 Phương thức thanh toán
               </h3>
@@ -198,7 +131,7 @@
                   <input type="radio" name="payment" value="cod" v-model="selectedPayment" />
                   <span class="payment-radio"></span>
                   <span class="payment-icon cod">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                   </span>
                   <div class="payment-details">
                     <div class="payment-name">Thanh toán khi nhận hàng (COD)</div>
@@ -206,8 +139,7 @@
                   </div>
                 </label>
 
-                <!-- Các phương thức khác giữ nguyên -->
-                <!-- ... (bank, momo, vnpay) ... -->
+                <!-- Có thể thêm các phương thức khác nếu backend hỗ trợ -->
               </div>
             </div>
 
@@ -215,7 +147,7 @@
             <div class="checkout-section">
               <h3 class="checkout-section-title">
                 <span class="section-icon note-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </span>
                 Ghi chú đơn hàng
               </h3>
@@ -232,7 +164,7 @@
           <div class="order-summary-sidebar">
             <div class="summary-header">
               <h3>Đơn hàng của bạn</h3>
-              <span class="items-count">{{ cartStore.itemCount }} sản phẩm</span>
+              <span class="items-count">{{ cartStore.items.length }} sản phẩm</span>
             </div>
 
             <!-- Order Items -->
@@ -240,13 +172,13 @@
               <div class="order-item" v-for="item in cartStore.items" :key="item.id">
                 <img 
                   :src="item.image || item.variant?.image_urls?.[0] || `https://via.placeholder.com/80?text=${encodeURIComponent(item.name || 'SP')}`" 
-                  :alt="item.name || 'Sản phẩm'" 
+                  :alt="item.name" 
                   class="order-item-image" 
                 />
                 <div class="order-item-info">
-                  <span class="order-item-name">{{ item.name }}</span>
-                  <span class="order-item-variant">Phân loại: {{ item.variant?.name || 'Mặc định' }}</span>
-                  <span class="order-item-qty">x{{ item.quantity }}</span>
+                  <div class="order-item-name">{{ item.name }}</div>
+                  <div class="order-item-variant">Phân loại: {{ item.variant?.name || 'Mặc định' }}</div>
+                  <div class="order-item-qty">x{{ item.quantity }}</div>
                 </div>
                 <span class="order-item-price">{{ formatPrice(calculatedUnitPrice(item) * item.quantity) }}</span>
               </div>
@@ -283,7 +215,8 @@
               :disabled="loading || cartStore.isEmpty || !formValid"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Đặt hàng
+              <span v-if="!loading">Đặt hàng</span>
+              <span v-else>Đang xử lý...</span>
             </button>
 
             <div class="order-secure-note">
@@ -306,20 +239,19 @@ import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
 
+const authStore = useAuthStore()
 const router = useRouter()
 const cartStore = useCartStore()
-const auth = useAuthStore()
 
 const loading = ref(false)
 const errorMessage = ref('')
+const errors = ref({})
 
 // Customer Info
 const customerInfo = ref({
   name: '',
   phone: '',
   email: '',
-  city: '',
-  district: '',
   address: ''
 })
 
@@ -330,17 +262,11 @@ const orderNote = ref('')
 
 // Computed: Kiểm tra form hợp lệ
 const formValid = computed(() => {
-  return (
-    customerInfo.value.name.trim() &&
-    customerInfo.value.phone.trim() &&
-    customerInfo.value.email.trim() &&
-    customerInfo.value.city &&
-    customerInfo.value.district &&
-    customerInfo.value.address.trim()
-  )
+  const required = ['name', 'phone', 'email', 'address']
+  return required.every(field => customerInfo.value[field]?.trim())
 })
 
-// Tính giá đơn vị (dùng chung cho đơn giá và thành tiền)
+// Tính giá đơn vị sản phẩm (hỗ trợ giá biến thể)
 const calculatedUnitPrice = (item) => {
   if (!item) return 0
   if (item.variant?.price_extra && Number(item.variant.price_extra) > 0) {
@@ -355,24 +281,23 @@ const formatPrice = (price) => {
 
 // Load dữ liệu khi mount
 onMounted(async () => {
-  if (!auth.isAuthenticated) {
-    router.push({ path: '/login', query: { redirect: '/checkout' } })
+  // Nếu giỏ hàng rỗng → chuyển về cart
+  if (cartStore.isEmpty) {
+    router.push('/cart')
     return
   }
 
-  // Điền sẵn thông tin từ user nếu đã login
-  if (auth.user) {
+  // Nếu đã đăng nhập → điền sẵn thông tin
+  if (authStore.isAuthenticated && authStore.user) {
     customerInfo.value = {
-      name: auth.user.full_name || '',
-      phone: auth.user.phone || '',
-      email: auth.user.email || '',
-      city: '', // cần API tỉnh/thành nếu muốn
-      district: '',
-      address: auth.user.address || ''
+      name: authStore.user.full_name || '',
+      phone: authStore.user.phone || '',
+      email: authStore.user.email || '',
+      address: authStore.user.address || ''
     }
   }
 
-  // Tải giỏ hàng
+  // Tải giỏ hàng (đã hỗ trợ guest)
   await cartStore.fetchCart()
 })
 
@@ -385,56 +310,79 @@ const placeOrder = async () => {
 
   loading.value = true
   errorMessage.value = ''
+  errors.value = {}
 
   try {
     const payload = {
       items: cartStore.items.map(item => ({
-        cart_item_id: item.id,               // ID của cart_item
+        cart_item_id: item.id,
         quantity: item.quantity,
         variant_id: item.variant_id || item.variant?.variant_id || null
       })),
+
       customer_info: {
         name: customerInfo.value.name.trim(),
         phone: customerInfo.value.phone.trim(),
         email: customerInfo.value.email.trim(),
-        city: customerInfo.value.city,
-        district: customerInfo.value.district,
-        address: customerInfo.value.address.trim()
+        address: customerInfo.value.address.trim(),
+        district: customerInfo.value.district?.trim() || '',
       },
       shipping_method: selectedShipping.value,
       payment_method: selectedPayment.value,
       note: orderNote.value.trim(),
-      coupon_code: cartStore.couponCode.trim() || null
+      coupon_code: cartStore.couponCode?.trim() || null
     }
 
-    console.log('Payload gửi đi:', payload)  // ← thêm dòng này để debug
+    console.log('Payload gửi đi:', payload)
 
     const res = await api.post('/orders', payload)
 
-    // Thành công
+    // Thành công - chuyển sang trang hoàn tất
     router.push({
       name: 'OrderSuccess',
-      query: { orderId: res.data.order_id || 'FT' + Date.now().toString().slice(-8) }
+      query: { orderId: res.data.order_id }
     })
 
+    // Clear giỏ hàng
     await cartStore.clearCart()
-  } catch (err) {
+    } catch (err) {
+    console.log("STATUS:", err.response?.status)
+    console.log("FULL RESPONSE:", err.response?.data)
+    console.log("VALIDATION ERRORS:", err.response?.data?.errors)
+
     if (err.response?.status === 422) {
-      // Hiển thị lỗi validate chi tiết
-      const errors = err.response.data.errors
-      errorMessage.value = Object.values(errors)[0]?.[0] || 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại!'
-      console.log('Validation errors:', errors)
-    } else {
-      errorMessage.value = err.response?.data?.message || 'Đặt hàng thất bại!'
+      errors.value = err.response.data.errors || {}
+      errorMessage.value =
+        Object.values(errors.value)[0]?.[0] ||
+        'Dữ liệu không hợp lệ.'
     }
-    console.error('Place order error:', err)
   } finally {
     loading.value = false
   }
 }
 </script>
 
-
 <style scoped>
 @import '@/views/cilent/css/checkout.css';
+
+/* Thêm style lỗi */
+.input-error {
+  border-color: var(--admin-danger) !important;
+}
+
+.error-text {
+  color: var(--admin-danger);
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+.error-message {
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  text-align: center;
+}
 </style>

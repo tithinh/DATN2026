@@ -14,9 +14,10 @@
           <div class="quickview-gallery">
             <div class="main-image">
               <img 
-                :src="activeImage || 'https://via.placeholder.com/500?text=' + encodeURIComponent(product.name)" 
-                :alt="product.name" 
-              />
+                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                  :alt="product.name"
+                  class="product-image"
+                />
             </div>
 
             <div class="thumbnail-list" v-if="images.length">
@@ -27,7 +28,7 @@
                 :class="{ active: activeImage === img }"
                 @click="activeImage = img"
               >
-                <img :src="img" :alt="`${product.name} ${+index + 1}`" />
+                <img :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]" :alt="`${product.name} ${+index + 1}`" />
               </button>
             </div>
           </div>
@@ -168,10 +169,7 @@ const decreaseQty = () => {
 }
 
 const addToCart = async () => {
-  if (!localStorage.getItem('token')) {
-    alert('Vui lòng đăng nhập để thêm vào giỏ hàng!')
-    return
-  }
+  // Cho phép thêm vào giỏ hàng mà không cần đăng nhập (sử dụng guest_user_id = 1)
 
   const variant = selectedVariant.value || props.product.variants?.[0]
   if (!variant?.variant_id) {
@@ -179,12 +177,24 @@ const addToCart = async () => {
     return
   }
 
+  // Check if user is logged in
+  const isLoggedIn = localStorage.getItem('token')
+  
+  // Prepare request config
+  let config = {}
+  if (!isLoggedIn) {
+    // Use guest_user_id = 1 for non-authenticated users
+    config = {
+      params: { guest_user_id: 1 }
+    }
+  }
+
   addingToCart.value = true
   try {
     await api.post('/cart/add', {
       variant_id: variant.variant_id,
       quantity: quantity.value
-    })
+    }, config)
     alert('Đã thêm vào giỏ hàng!')
     emit('add-to-cart', { ...props.product, quantity: quantity.value })
   } catch (err: any) {

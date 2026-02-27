@@ -16,21 +16,6 @@
         <a href="/contact" class="nav-link">Liên hệ</a>
       </nav>
 
-      <!-- Search Box -->
-      <div class="search-box" ref="searchBox">
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Tìm kiếm sản phẩm..."
-          class="search-input"
-          @focus="showDropdown = true"
-          @keyup.enter="goToSearch"
-        />
-
-        <button class="search-btn" @click="goToSearch">
-          🔍
-        </button>
-      </div>
 
       <!-- Auth Buttons -->
 
@@ -131,7 +116,7 @@ watch(searchQuery, (val) => {
 
   debounceTimer = setTimeout(async () => {
     try {
-      const res = await axios.get('/api/search', {
+      const res = await axios.get('/products/search', {
         params: { q: val, limit: 6 }
       })
       results.value = res.data.data
@@ -197,10 +182,21 @@ onMounted(() => {
   height: 48px;
   object-fit: cover;
   border-radius: 8px;
+  flex-shrink: 0;
 }
 
-.name {
+.search-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.search-item-info .name {
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .price {

@@ -34,20 +34,24 @@ export const useCartStore = defineStore('cart', {
   },
 
   actions: {
-    // Tải giỏ hàng từ backend
+    // Tải giỏ hàng từ backend (hỗ trợ cả user và guest)
     async fetchCart() {
       const auth = useAuthStore()
-
-      if (!auth.isAuthenticated) {
-        this.resetCart()
-        return
-      }
 
       this.loading = true
       this.error = null
 
       try {
-        const res = await api.get('/cart')
+        let config = {}
+        
+        // Nếu không đăng nhập, sử dụng guest_user_id = 1
+        if (!auth.isAuthenticated) {
+          config = {
+            params: { guest_user_id: 1 }
+          }
+        }
+
+        const res = await api.get('/cart', config)
         this.items = res.data?.items || res.data || []
         this.couponCode = res.data?.coupon_code || ''
         this.calculateTotals()

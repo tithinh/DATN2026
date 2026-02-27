@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\CartItem;
 use App\Models\Order;
@@ -17,7 +16,7 @@ use App\Models\ProductVariant;
 class OrderController extends Controller
 {
     /**
-     * Tạo đơn hàng mới
+     * Tạo đơn hàng mới (hỗ trợ cả user và guest với user_id = 1)
      */
     public function store(Request $request)
     {
@@ -31,9 +30,9 @@ class OrderController extends Controller
             'customer_info.phone' => 'required|string|max:20',
             'customer_info.email' => 'required|email',
             'customer_info.address' => 'required|string|max:255',
-            'customer_info.district' => 'nullable|string|max:100',
+            'customer_info.district' => 'required|string|max:100',
             'shipping_method' => 'required|string|in:standard,express,same-day',
-            'payment_method' => 'required|string|in:cod',
+            'payment_method' => 'required|string|in:cod,bank,momo,vnpay',
             'note' => 'nullable|string|max:1000',
             'coupon_code' => 'nullable|string|max:50',
         ]);
@@ -46,6 +45,7 @@ class OrderController extends Controller
             $userId = Auth::check() ? Auth::id() : ($guestUserId ?? null);
 
             if (!$userId) {
+                // Tạo guest user mới
                 $guest = User::firstOrCreate(
                     ['email' => 'guest_' . Str::random(8) . '@fivetech.vn'],
                     [
@@ -65,7 +65,8 @@ class OrderController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $cartItem = CartItem::findOrFail($itemData['cart_item_id']);
 
-                if ($cartItem->user_id !== $userId && $cartItem->session_id !== session()->getId()) {
+                // Kiểm tra quyền sử dụng cart item (theo user_id hoặc session_id)
+                if ($cartItem->user_id != $userId && $cartItem->session_id != session()->getId()) {
                     throw new \Exception('Không có quyền sử dụng sản phẩm này trong giỏ hàng.');
                 }
 
@@ -92,30 +93,29 @@ class OrderController extends Controller
                 ];
             }
 
-            // Tạo mã đơn hàng tự động
-            $orderCode = $this->generateOrderCode();
-            
             $order = Order::create([
                 'user_id' => $userId,
-                'order_code' => $orderCode,
-                'total_amount' => $subtotal - ($request->discount ?? 0) + ($request->shipping_fee ?? 0),
+                'total' => $subtotal - ($request->discount ?? 0) + ($request->shipping_fee ?? 0),
                 'status' => 'pending',
                 'shipping_method' => $validated['shipping_method'],
                 'payment_method' => $validated['payment_method'],
-                'note' => $validated['note'] ?? null,
+                'note' => $validated['note'],
                 'customer_name' => $validated['customer_info']['name'],
                 'customer_phone' => $validated['customer_info']['phone'],
                 'customer_email' => $validated['customer_info']['email'],
                 'customer_address' => $validated['customer_info']['address'],
-                'customer_district' => $validated['customer_info']['district'] ?? null,
+                'customer_district' => $validated['customer_info']['district'],
             ]);
 
             foreach ($orderItemsData as $data) {
                 $order->items()->create($data);
             }
 
+            // Xóa cart items sau khi đặt hàng thành công
             if (Auth::check()) {
                 CartItem::where('user_id', Auth::id())->delete();
+            } elseif ($guestUserId) {
+                CartItem::where('user_id', $guestUserId)->delete();
             } else {
                 CartItem::where('session_id', session()->getId())->delete();
             }
@@ -124,9 +124,8 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Đặt hàng thành công',
-                'order_code' => $order->order_code,
-                'order_id' => $order->order_id,
-                'total' => $order->total_amount,
+                'order_id' => $order->id,
+                'total' => $order->total,
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
@@ -158,10 +157,9 @@ class OrderController extends Controller
         $orders = $orders->map(function ($order) {
             return [
                 'id' => $order->id,
-                'order_code' => $order->order_code,
                 'status' => $order->status,
                 'status_text' => $this->getStatusText($order->status),
-                'total' => $order->total_amount,
+                'total' => $order->total,
                 'payment_method' => $order->payment_method,
                 'shipping_method' => $order->shipping_method,
                 'created_at' => $order->created_at,
@@ -208,15 +206,11 @@ class OrderController extends Controller
     /**
      * Chi tiết đơn hàng
      */
-    public function show(Request $request, $orderIdentifier)
+    public function show(Request $request, $order_id)
     {
         $user = $request->user();
 
-        // Chấp nhận cả order_id và order_code
-        $order = Order::where(function($query) use ($orderIdentifier) {
-                $query->where('order_id', $orderIdentifier)
-                      ->orWhere('order_code', $orderIdentifier);
-            })
+        $order = Order::where('order_id', $order_id)
             ->where('user_id', $user->id)
             ->with(['items.product', 'items.variant'])
             ->first();
@@ -229,10 +223,9 @@ class OrderController extends Controller
 
         $orderData = [
             'id' => $order->id,
-            'order_code' => $order->order_code,
             'status' => $order->status,
             'status_text' => $this->getStatusText($order->status),
-            'total' => $order->total_amount,
+            'total' => $order->total,
             'payment_method' => $order->payment_method,
             'shipping_method' => $order->shipping_method,
             'note' => $order->note,
@@ -279,7 +272,7 @@ class OrderController extends Controller
     {
         $user = $request->user();
 
-        $order = Order::where('order_id', $order_id)
+        $order = Order::where('id', $order_id)
             ->where('user_id', $user->id)
             ->first();
 
@@ -310,7 +303,7 @@ class OrderController extends Controller
     {
         $user = $request->user();
 
-        $order = Order::where('order_id', $order_id)
+        $order = Order::where('id', $order_id)
             ->where('user_id', $user->id)
             ->first();
 
@@ -340,30 +333,6 @@ class OrderController extends Controller
     public function validateCheckout(Request $request)
     {
         return response()->json(['valid' => true]);
-    }
-
-    /**
-     * Tạo mã đơn hàng tự động: FT-YYYYMMDD-XXXX
-     */
-    private function generateOrderCode()
-    {
-        $today = now()->format('Ymd');
-        $prefix = 'FT-' . $today . '-';
-        
-        // Lấy đơn hàng cuối cùng trong ngày
-        $lastOrder = Order::where('order_code', 'like', $prefix . '%')
-            ->orderBy('order_code', 'desc')
-            ->first();
-        
-        if ($lastOrder) {
-            // Lấy số cuối và tăng lên 1
-            $lastNumber = (int) substr($lastOrder->order_code, -4);
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
-        }
-        
-        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 
     /**
