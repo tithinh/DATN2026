@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+<<<<<<< HEAD
+=======
+!storage/app/public/
+!storage/app/public/variants/
+>>>>>>> 6d95040 (1)

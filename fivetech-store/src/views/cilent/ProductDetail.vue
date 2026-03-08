@@ -377,7 +377,11 @@ const getRelatedImage = (related) => {
       return `http://localhost:8000/storage/${path.replace(/^\/+/, '')}`
     }
     return path
+<<<<<<< HEAD
   }
+=======
+  }gitignore
+>>>>>>> 6d95040 (1)
 }
 
 // Các computed khác giữ nguyên
