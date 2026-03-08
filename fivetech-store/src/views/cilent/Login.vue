@@ -154,6 +154,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api, { redirectToGoogle, redirectToFacebook, handleSocialCallback } from '@/api'
+import { useAuthStore } from '@/stores/auth'
 
 const email = ref('')
 const password = ref('')
@@ -172,6 +173,11 @@ onMounted(async () => {
     try {
       const success = await handleSocialCallback()
       if (success) {
+        // Update auth store after social login
+        const auth = useAuthStore()
+        const userData = localStorage.getItem('user')
+        auth.login(userData ? JSON.parse(userData) : {})
+        
         alert('Đăng nhập thành công!')
         router.push('/')
       } else {
@@ -205,6 +211,10 @@ const handleLogin = async () => {
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user || {}))
       api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+      
+      // Update auth store
+      const auth = useAuthStore()
+      auth.login(data.user || {})
     }
 
     alert(data.message || 'Đăng nhập thành công!')
@@ -233,11 +243,49 @@ const handleLogin = async () => {
 }
 
 const handleGoogleLogin = () => {
-  redirectToGoogle()
+  // Open Google login in popup
+  const width = 500
+  const height = 600
+  const left = (screen.width - width) / 2
+  const top = (screen.height - height) / 2
+  
+  const popup = window.open(
+    `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth/google`,
+    'google-login',
+    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+  )
+  
+  // Listen for message from popup
+  const checkPopup = setInterval(() => {
+    if (popup.closed) {
+      clearInterval(checkPopup)
+      // Refresh and check if user is logged in
+      window.location.reload()
+    }
+  }, 500)
 }
 
 const handleFacebookLogin = () => {
-  redirectToFacebook()
+  // Open Facebook login in popup
+  const width = 500
+  const height = 600
+  const left = (screen.width - width) / 2
+  const top = (screen.height - height) / 2
+  
+  const popup = window.open(
+    `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth/facebook`,
+    'facebook-login',
+    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+  )
+  
+  // Listen for message from popup
+  const checkPopup = setInterval(() => {
+    if (popup.closed) {
+      clearInterval(checkPopup)
+      // Refresh and check if user is logged in
+      window.location.reload()
+    }
+  }, 500)
 }
 </script>
 

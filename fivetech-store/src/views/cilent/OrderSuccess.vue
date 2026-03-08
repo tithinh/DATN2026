@@ -48,7 +48,7 @@
           </p>
           <div class="order-id-display">
             <span class="order-id-label">Mã đơn hàng:</span>
-            <span class="order-id-value">{{ orderData.order_code || orderId }}</span>
+            <span class="order-id-value">{{ orderData.order_code || orderCode }}</span>
           </div>
         </div>
 
@@ -101,10 +101,10 @@
                   <span class="detail-label">Địa chỉ</span>
                   <span class="detail-value">{{ orderData.shipping?.address || customerInfo.address }}</span>
                 </div>
-                <div class="detail-row">
+                <!-- <div class="detail-row">
                   <span class="detail-label">Vận chuyển</span>
                   <span class="detail-value">{{ orderData.shipping_method || 'Giao hàng tiêu chuẩn' }}</span>
-                </div>
+                </div> -->
               </div>
             </div>
 
@@ -189,7 +189,7 @@ import { useRoute } from 'vue-router'
 import api from '@/api'
 
 const route = useRoute()
-const orderId = computed(() => route.query.orderId || route.params.orderId || null)
+const orderCode = computed(() => route.query.orderCode || route.params.orderCode || null)
 
 const loading = ref(true)
 const error = ref(null)
@@ -197,7 +197,7 @@ const orderData = ref(null)
 
 // Fetch order details
 const fetchOrderDetails = async () => {
-  if (!orderId.value) {
+  if (!orderCode.value) {
     error.value = 'Không tìm thấy mã đơn hàng'
     loading.value = false
     return
@@ -205,7 +205,7 @@ const fetchOrderDetails = async () => {
 
   loading.value = true
   try {
-    const res = await api.get(`/orders/${orderId.value}`)
+    const res = await api.get(`/orders/${orderCode.value}`)
     orderData.value = res.data
   } catch (err) {
     console.error('Failed to fetch order:', err)

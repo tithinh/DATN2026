@@ -46,8 +46,8 @@
         <div class="checkout-layout">
           <!-- Left Column: Forms -->
           <div class="checkout-form">
-            <!-- Customer Info -->
-            <div class="checkout-section">
+            <!-- Customer Info - Thông tin tự động lấy từ user đã đăng nhập -->
+            <div class="checkout-section" v-if="authStore.isAuthenticated && authStore.user">
               <h3 class="checkout-section-title">
                 <span class="section-icon info-icon">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -55,60 +55,50 @@
                 Thông tin người nhận
               </h3>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Họ và tên <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
-                    placeholder="Nguyễn Văn A" 
-                    v-model="customerInfo.name" 
-                    :class="{ 'input-error': errors['customer_info.name'] }"
-                    :disabled="loading"
-                  />
-                  <span v-if="errors['customer_info.name']" class="error-text">{{ errors['customer_info.name'][0] }}</span>
+              <div class="customer-info-display">
+                <div class="info-row">
+                  <span class="info-label">User ID:</span>
+                  <span class="info-value">{{ authStore.user.id }}</span>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Số điện thoại <span class="required">*</span></label>
-                  <input 
-                    type="tel" 
-                    class="form-input" 
-                    placeholder="0912 345 678" 
-                    v-model="customerInfo.phone" 
-                    :class="{ 'input-error': errors['customer_info.phone'] }"
-                    :disabled="loading"
-                  />
-                  <span v-if="errors['customer_info.phone']" class="error-text">{{ errors['customer_info.phone'][0] }}</span>
+                <div class="info-row">
+                  <span class="info-label">Họ và tên:</span>
+                  <span class="info-value">{{ authStore.user.full_name }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Số điện thoại:</span>
+                  <span class="info-value">{{ authStore.user.phone || 'Chưa cập nhật' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Địa chỉ:</span>
+                  <span class="info-value">{{ authStore.user.address || 'Chưa cập nhật' }}</span>
                 </div>
               </div>
+              
+              <router-link to="/profile/edit" class="edit-profile-link">
+                Cập nhật thông tin tại đây
+              </router-link>
+            </div>
 
-              <div class="form-row full">
-                <div class="form-group">
-                  <label class="form-label">Email <span class="required">*</span></label>
-                  <input 
-                    type="email" 
-                    class="form-input" 
-                    placeholder="email@example.com" 
-                    v-model="customerInfo.email" 
-                    :class="{ 'input-error': errors['customer_info.email'] }"
-                    :disabled="loading"
-                  />
-                  <span v-if="errors['customer_info.email']" class="error-text">{{ errors['customer_info.email'][0] }}</span>
+            <!-- Thông tin cho khách chưa đăng nhập -->
+            <div class="checkout-section" v-else>
+              <h3 class="checkout-section-title">
+                <span class="section-icon info-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                Thông tin khách hàng
+              </h3>
+              
+              <div class="customer-info-display">
+                <div class="info-row">
+                  <span class="info-label">Trạng thái:</span>
+                  <span class="info-value">Khách chưa đăng nhập</span>
                 </div>
-              </div>
-
-              <div class="form-row full">
-                <div class="form-group">
-                  <label class="form-label">Địa chỉ cụ thể <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
-                    placeholder="Số nhà, tên đường, phường/xã" 
-                    v-model="customerInfo.address" 
-                    :class="{ 'input-error': errors['customer_info.address'] }"
-                    :disabled="loading"
-                  />
-                  <span v-if="errors['customer_info.address']" class="error-text">{{ errors['customer_info.address'][0] }}</span>
+                <div class="info-row">
+                  <span class="info-label">User ID (Guest):</span>
+                  <span class="info-value">1</span>
+                </div>
+                <div class="info-note">
+                  Thông tin đơn hàng sẽ được lấy từ user_id = 1
                 </div>
               </div>
             </div>
@@ -256,14 +246,13 @@ const customerInfo = ref({
 })
 
 // Shipping & Payment
-const selectedShipping = ref('standard')
 const selectedPayment = ref('cod')
 const orderNote = ref('')
 
 // Computed: Kiểm tra form hợp lệ
 const formValid = computed(() => {
-  const required = ['name', 'phone', 'email', 'address']
-  return required.every(field => customerInfo.value[field]?.trim())
+  // Thông tin lấy từ bảng users, luôn hợp lệ
+  return true
 })
 
 // Tính giá đơn vị sản phẩm (hỗ trợ giá biến thể)
@@ -304,7 +293,7 @@ onMounted(async () => {
 // Đặt hàng
 const placeOrder = async () => {
   if (!formValid.value) {
-    errorMessage.value = 'Vui lòng điền đầy đủ thông tin người nhận!'
+    errorMessage.value = 'Không thể đặt hàng!'
     return
   }
 
@@ -319,15 +308,7 @@ const placeOrder = async () => {
         quantity: item.quantity,
         variant_id: item.variant_id || item.variant?.variant_id || null
       })),
-
-      customer_info: {
-        name: customerInfo.value.name.trim(),
-        phone: customerInfo.value.phone.trim(),
-        email: customerInfo.value.email.trim(),
-        address: customerInfo.value.address.trim(),
-        district: customerInfo.value.district?.trim() || '',
-      },
-      shipping_method: selectedShipping.value,
+      
       payment_method: selectedPayment.value,
       note: orderNote.value.trim(),
       coupon_code: cartStore.couponCode?.trim() || null
@@ -340,7 +321,7 @@ const placeOrder = async () => {
     // Thành công - chuyển sang trang hoàn tất
     router.push({
       name: 'OrderSuccess',
-      query: { orderId: res.data.order_id }
+      query: { orderCode: res.data.order_code }
     })
 
     // Clear giỏ hàng

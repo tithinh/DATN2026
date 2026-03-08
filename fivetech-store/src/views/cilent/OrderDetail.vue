@@ -132,7 +132,7 @@
             </div>
 
             <!-- Shipping Method -->
-            <div class="info-card">
+            <!-- <div class="info-card">
               <h3 class="card-title">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="13" x="4" y="5" rx="2"/><polygon points="4 5 2 5 2 19 16 19 16 13 4 13"/><line x1="6" x2="9" y1="9" y2="9"/><line x1="10" x2="10" y1="9" y2="9"/></svg>
                 Vận chuyển
@@ -143,7 +143,7 @@
                   <span class="value">{{ getShippingMethodText(order.shipping_method) }}</span>
                 </div>
               </div>
-            </div>
+            </div> -->
           </div>
 
           <!-- Order Items -->

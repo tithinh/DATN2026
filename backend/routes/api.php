@@ -42,14 +42,6 @@ Route::prefix('v1')->group(function () {
     Route::post('/password/forgot', [AuthController::class, 'forgotPassword']);
     Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 
-    // Social Login - Google
-    Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
-    Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
-
-    // Social Login - Facebook
-    Route::get('/auth/facebook', [AuthController::class, 'redirectToFacebook']);
-    Route::get('/auth/facebook/callback', [AuthController::class, 'handleFacebookCallback']);
-
     Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
     // News (public)
@@ -102,7 +94,6 @@ Route::prefix('v1')->group(function () {
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'index']);
             Route::post('/', [OrderController::class, 'store']);
-            Route::get('/{order_id}', [OrderController::class, 'show']);
             Route::post('/{order_id}/cancel', [OrderController::class, 'cancel']);
             Route::post('/{order_id}/confirm-received', [OrderController::class, 'confirmReceived']);
             Route::post('/checkout/validate', [OrderController::class, 'validateCheckout']);
@@ -133,6 +124,9 @@ Route::prefix('v1')->group(function () {
 
     // PUBLIC ORDER CREATION (cho cả guest và user)
     Route::post('/orders', [OrderController::class, 'store']);
+
+    // PUBLIC ORDER VIEW (cho guest xem đơn hàng sau khi đặt)
+    Route::get('/orders/{orderIdentifier}', [OrderController::class, 'show']);
 
 
 

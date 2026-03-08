@@ -178,7 +178,7 @@
 
               <!-- Form đánh giá mới -->
               <div v-if="auth.isAuthenticated" class="comment-form">
-                <h4>Viết đánh giá của bạn</h4>
+                <h4>Viết bình luận của bạn</h4>
                 <div class="rating-input">
                   <span>Đánh giá:</span>
                   <div class="stars-select">
@@ -301,6 +301,12 @@ const submittingComment = ref(false)
 const replyForms = ref({})
 const replyContent = ref({})
 const replying = ref(false)
+
+// Sửa bình luận
+const editingCommentId = ref(null)
+const editContent = ref('')
+const editRating = ref(0)
+const isEditing = ref(false)
 
 // Computed rating (giữ nguyên)
 const averageRating = computed(() => {

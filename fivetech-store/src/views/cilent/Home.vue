@@ -33,50 +33,47 @@
         </div>
 
         <div class="products-grid" v-if="bestSellers.length">
-          <router-link
+          <div
             v-for="product in bestSellers.slice(0, displayedBestSellers)"
             :key="product.product_id"
-            :to="`/products/${product.slug}`"
-            class="product-card-link"
+            class="product-card-wrapper"
           >
-            <article class="product-card">
-              <span class="product-badge badge-hot">Hot</span>
-              <div class="product-image-wrapper">
-                <img 
-                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
-                  :alt="product.name"
-                  class="product-image"
-                />
-                <button
-                  class="wishlist-btn"
-                  :class="{ active: isInWishlist(product.product_id) }"
-                  @click.stop="toggleWishlist(product.product_id)"
-                  title="Yêu thích"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                  </svg>
-                </button>
-              </div>
-              <div class="product-info">
-                <h3 class="product-name">{{ product.name }}</h3>
-                <div class="product-price">
-                  <span class="current-price">{{ formatPrice(product.discount_price || product.base_price) }}đ</span>
-                  <span v-if="product.discount_price" class="old-price">{{ formatPrice(product.base_price) }}đ</span>
+            <router-link :to="`/products/${product.slug}`" class="product-card-link">
+              <article class="product-card">
+                <span class="product-badge badge-hot">Hot</span>
+                <div class="product-image-wrapper">
+                  <img 
+                    :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                    :alt="product.name"
+                    class="product-image"
+                  />
                 </div>
-                <div class="product-rating">
-                  <span class="stars">★★★★★</span>
-                  <span class="review-count">(128)</span>
+                <div class="product-info">
+                  <h3 class="product-name">{{ product.name }}</h3>
+                  <div class="product-price">
+                    <span class="current-price">{{ formatPrice(product.discount_price || product.base_price) }}</span>
+                    <span v-if="product.discount_price" class="old-price">{{ formatPrice(product.base_price) }}</span>
+                  </div>
+                  <button 
+                    class="add-to-cart-btn" 
+                    @click.stop="addToCart(product)"
+                  >
+                    Xem chi tiết
+                  </button>
                 </div>
-                <button 
-                  class="add-to-cart-btn" 
-                  @click.stop="addToCart(product)"
-                >
-                  Xem chi tiết
-                </button>
-              </div>
-            </article>
-          </router-link>
+              </article>
+            </router-link>
+            <button
+              class="wishlist-btn"
+              :class="{ active: isInWishlist(product.product_id) }"
+              @click="toggleWishlist(product.product_id, $event)"
+              title="Yêu thích"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
         <p v-else-if="loading">Đang tải sản phẩm...</p>
         <p v-else>Không có sản phẩm nào</p>
@@ -133,7 +130,6 @@
                 <div class="product-price">
                   <span class="current-price">{{ formatPrice(product.discount_price || product.base_price) }}đ</span>
                 </div>
-                <div class="product-rating"><span class="stars">★★★★★</span><span class="review-count">(12)</span></div>
                 <button 
                   class="add-to-cart-btn" 
                   @click.stop="addToCart(product)"
@@ -214,7 +210,6 @@
                   <span class="current-price">{{ formatPrice(product.discount_price) }}đ</span>
                   <span class="old-price">{{ formatPrice(product.base_price) }}đ</span>
                 </div>
-                <div class="product-rating"><span class="stars">★★★★★</span><span class="review-count">(56)</span></div>
                 <button 
                   class="add-to-cart-btn" 
                   @click.stop="addToCart(product)"
@@ -289,8 +284,14 @@ const formatPrice = (price) => {
 
 const isInWishlist = (id) => wishlist.value.includes(id)
 
-const toggleWishlist = async (productId) => {
-  if (!api.defaults.headers.common['Authorization']) {
+const toggleWishlist = async (productId, event) => {
+  // Ngăn chặn sự kiện click lan đến các phần tử cha
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  if (!localStorage.getItem('token')) {
     alert('Vui lòng đăng nhập để thêm yêu thích!')
     return router.push('/login')
   }
@@ -442,6 +443,11 @@ const router = useRouter()
 
 /* ================= PRODUCTS GRID ================= */
 .products-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+/* Wrapper cho product card để chứa cả router-link và nút wishlist */
+.product-card-wrapper {
+  position: relative;
+}
 
 /* ================= PRODUCT CARD ================= */
 .product-card {

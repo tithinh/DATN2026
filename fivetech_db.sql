@@ -339,12 +339,6 @@ CREATE TABLE `orders` (
   `note` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `shipping_method` varchar(255) DEFAULT NULL,
-  `customer_name` varchar(255) DEFAULT NULL,
-  `customer_phone` varchar(255) DEFAULT NULL,
-  `customer_email` varchar(255) DEFAULT NULL,
-  `customer_address` varchar(255) DEFAULT NULL,
-  `customer_district` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

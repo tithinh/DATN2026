@@ -446,7 +446,7 @@ const removeFromWishlist = async (productId) => {
   }
 
   try {
-    await api.delete(`/wishlist/${productId}`)
+    await api.delete(`/wishlist/remove/${productId}`)
     // Cập nhật lại danh sách
     wishlistItems.value = wishlistItems.value.filter(item => item.product_id !== productId)
     alert('Đã xóa khỏi danh sách yêu thích!')

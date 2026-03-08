@@ -65,14 +65,14 @@
       </div>
 
       <!-- Đánh giá & số lượng đánh giá -->
-      <div class="product-rating">
+      <!-- <div class="product-rating">
         <span class="stars">
           <span v-for="i in 5" :key="i" :class="{ filled: i <= Math.round(averageRating) }">★</span>
         </span>
         <span class="rating-text">
           {{ averageRating.toFixed(1) }} 
         </span>
-      </div>
+      </div> -->
 
       <!-- Nút hành động -->
       <div class="product-buttons">

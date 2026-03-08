@@ -26,14 +26,8 @@ class OrderController extends Controller
             'items.*.cart_item_id' => 'required|exists:cart_items,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.variant_id' => 'nullable|exists:product_variants,variant_id',
-            'customer_info' => 'required|array',
-            'customer_info.name' => 'required|string|max:255',
-            'customer_info.phone' => 'required|string|max:20',
-            'customer_info.email' => 'required|email',
-            'customer_info.address' => 'required|string|max:255',
-            'customer_info.district' => 'nullable|string|max:100',
-            'shipping_method' => 'required|string|in:standard,express,same-day',
             'payment_method' => 'required|string|in:cod',
+            'shipping_address' => 'nullable|string|max:500',
             'note' => 'nullable|string|max:1000',
             'coupon_code' => 'nullable|string|max:50',
         ]);
@@ -43,21 +37,21 @@ class OrderController extends Controller
         try {
             // Guest user_id from header or query param (for guest with user_id = 1)
             $guestUserId = $request->header('X-Guest-User-Id') ?? $request->query('guest_user_id');
-            $userId = Auth::check() ? Auth::id() : ($guestUserId ?? null);
+            $userId = Auth::check() ? Auth::id() : ($guestUserId ?? 1);
 
-            if (!$userId) {
-                $guest = User::firstOrCreate(
-                    ['email' => 'guest_' . Str::random(8) . '@fivetech.vn'],
-                    [
-                        'full_name' => $validated['customer_info']['name'],
-                        'phone' => $validated['customer_info']['phone'],
-                        'address' => $validated['customer_info']['address'],
-                        'password' => bcrypt(Str::random(16)),
-                        'is_active' => false,
-                    ]
-                );
-                $userId = $guest->id;
+            // Lấy thông tin user từ bảng users
+            $user = User::find($userId);
+
+            // Nếu không tìm thấy user, sử dụng user_id = 1
+            if (!$user) {
+                $user = User::find(1);
             }
+
+            // Nếu vẫn không có user, lấy thông tin từ request (fallback)
+            $customerName = $user ? $user->full_name : 'Guest';
+            $customerPhone = $user ? $user->phone : '';
+            $customerEmail = $user ? $user->email : 'guest@fivetech.vn';
+            $customerAddress = $user ? $user->address : '';
 
             $subtotal = 0;
             $orderItemsData = [];
@@ -65,8 +59,17 @@ class OrderController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $cartItem = CartItem::findOrFail($itemData['cart_item_id']);
 
-                if ($cartItem->user_id !== $userId && $cartItem->session_id !== session()->getId()) {
-                    throw new \Exception('Không có quyền sử dụng sản phẩm này trong giỏ hàng.');
+                // Cho phep user_id = 1 (guest) su dung cart items
+                $isGuestUser = ($userId == 1);
+
+                if ($isGuestUser) {
+                    if ($cartItem->user_id != 1 && $cartItem->user_id != null) {
+                        throw new \Exception('Khong co quyen su dung san pham nay trong gio hang.');
+                    }
+                } else {
+                    if ($cartItem->user_id != $userId && $cartItem->session_id != session()->getId()) {
+                        throw new \Exception('Khong co quyen su dung san pham nay trong gio hang.');
+                    }
                 }
 
                 $unitPrice = $cartItem->price;
@@ -94,20 +97,40 @@ class OrderController extends Controller
 
             // Tạo mã đơn hàng tự động
             $orderCode = $this->generateOrderCode();
-            
+
+            // Tìm promo từ coupon_code nếu có
+            $promoId = null;
+            $discountAmount = 0;
+            if (!empty($validated['coupon_code'])) {
+                $promo = \App\Models\Promotion::where('code', $validated['coupon_code'])
+                    ->where('is_active', true)
+                    ->first();
+                if ($promo) {
+                    $promoId = $promo->id;
+                    // Tính giảm giá
+                    if ($promo->discount_type === 'percentage') {
+                        $discountAmount = $subtotal * ($promo->discount_value / 100);
+                    } else {
+                        $discountAmount = $promo->discount_value;
+                    }
+                }
+            }
+
+            // Tính toán các khoản
+            $shippingFee = $request->shipping_fee ?? 0;
+            $totalAmount = $subtotal - $discountAmount + $shippingFee;
+
             $order = Order::create([
                 'user_id' => $userId,
                 'order_code' => $orderCode,
-                'total_amount' => $subtotal - ($request->discount ?? 0) + ($request->shipping_fee ?? 0),
+                'promo_id' => $promoId,
+                'discount_amount' => $discountAmount,
+                'final_amount' => $totalAmount,
+                'total_amount' => $subtotal,
                 'status' => 'pending',
-                'shipping_method' => $validated['shipping_method'],
                 'payment_method' => $validated['payment_method'],
+                'shipping_address' => $validated['shipping_address'] ?? null,
                 'note' => $validated['note'] ?? null,
-                'customer_name' => $validated['customer_info']['name'],
-                'customer_phone' => $validated['customer_info']['phone'],
-                'customer_email' => $validated['customer_info']['email'],
-                'customer_address' => $validated['customer_info']['address'],
-                'customer_district' => $validated['customer_info']['district'] ?? null,
             ]);
 
             foreach ($orderItemsData as $data) {
@@ -163,7 +186,6 @@ class OrderController extends Controller
                 'status_text' => $this->getStatusText($order->status),
                 'total' => $order->total_amount,
                 'payment_method' => $order->payment_method,
-                'shipping_method' => $order->shipping_method,
                 'created_at' => $order->created_at,
                 'progress' => $this->getStatusProgress($order->status),
                 'items' => $order->items->map(function ($item) {
@@ -210,18 +232,23 @@ class OrderController extends Controller
      */
     public function show(Request $request, $orderIdentifier)
     {
-        $user = $request->user();
-
         // Chấp nhận cả order_id và order_code
         $order = Order::where(function($query) use ($orderIdentifier) {
                 $query->where('order_id', $orderIdentifier)
                       ->orWhere('order_code', $orderIdentifier);
             })
-            ->where('user_id', $user->id)
-            ->with(['items.product', 'items.variant'])
+            ->with(['items.product', 'items.variant', 'user'])
             ->first();
 
         if (!$order) {
+            return response()->json([
+                'message' => 'Đơn hàng không tồn tại',
+            ], 404);
+        }
+
+        // Nếu có user đăng nhập, kiểm tra quyền sở hữu
+        $user = $request->user();
+        if ($user && $order->user_id != $user->id) {
             return response()->json([
                 'message' => 'Đơn hàng không tồn tại',
             ], 404);
@@ -232,18 +259,23 @@ class OrderController extends Controller
             'order_code' => $order->order_code,
             'status' => $order->status,
             'status_text' => $this->getStatusText($order->status),
-            'total' => $order->total_amount,
+            'total_amount' => $order->total_amount,
+            'discount_amount' => $order->discount_amount ?? 0,
+            'final_amount' => $order->final_amount ?? $order->total_amount,
+            'promo_id' => $order->promo_id,
             'payment_method' => $order->payment_method,
-            'shipping_method' => $order->shipping_method,
             'note' => $order->note,
             'created_at' => $order->created_at,
             'progress' => $this->getStatusProgress($order->status),
+            'shipping' => [
+                'name' => $order->user ? $order->user->full_name : 'Khách hàng',
+                'phone' => $order->user ? $order->user->phone : '',
+                'address' => $order->shipping_address ?? ($order->user ? $order->user->address : ''),
+            ],
             'customer' => [
-                'name' => $order->customer_name,
-                'phone' => $order->customer_phone,
-                'email' => $order->customer_email,
-                'address' => $order->customer_address,
-                'district' => $order->customer_district,
+                'name' => $order->user ? $order->user->full_name : 'Khách hàng',
+                'email' => $order->user ? $order->user->email : '',
+                'phone' => $order->user ? $order->user->phone : '',
             ],
             'items' => $order->items->map(function ($item) {
                 $image = null;
@@ -343,18 +375,102 @@ class OrderController extends Controller
     }
 
     /**
+     * Danh sách đơn hàng cho admin
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Order::with(['user']);
+
+        // Search by order_code or user name
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('order_code', 'like', "%{$search}%")
+                  ->orWhereHas('user', function($userQuery) use ($search) {
+                      $userQuery->where('full_name', 'like', "%{$search}%")
+                                ->orWhere('phone', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Filter by status
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $perPage = $request->per_page ?? 15;
+        $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        // Transform data to match frontend expectations
+        $orders->getCollection()->transform(function ($order) {
+            return [
+                'id' => $order->order_id,
+                'order_code' => $order->order_code,
+                'user_id' => $order->user_id,
+                'promo_id' => $order->promo_id,
+                'total_amount' => $order->total_amount,
+                'discount_amount' => $order->discount_amount ?? 0,
+                'final_amount' => $order->final_amount ?? $order->total_amount,
+                'status' => $order->status,
+                'status_text' => $this->getStatusText($order->status),
+                'payment_method' => $order->payment_method,
+                'shipping_address' => $order->shipping_address,
+                'note' => $order->note,
+                'created_at' => $order->created_at,
+                'updated_at' => $order->updated_at,
+                'customer_name' => $order->user ? $order->user->full_name : 'Khách vãng lai',
+                'phone' => $order->user ? $order->user->phone : '',
+                'email' => $order->user ? $order->user->email : '',
+            ];
+        });
+
+        return response()->json($orders);
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng (admin)
+     */
+    public function updateStatus(Request $request, $order_id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string|in:pending,confirmed,processing,shipping,delivered,completed,cancelled',
+        ]);
+
+        $order = Order::where('order_id', $order_id)->first();
+
+        if (!$order) {
+            return response()->json([
+                'message' => 'Đơn hàng không tồn tại',
+            ], 404);
+        }
+
+        $order->update(['status' => $validated['status']]);
+
+        return response()->json([
+            'message' => 'Cập nhật trạng thái thành công',
+            'success' => true,
+            'order' => [
+                'id' => $order->order_id,
+                'status' => $order->status,
+                'status_text' => $this->getStatusText($order->status),
+            ],
+        ]);
+    }
+
+    /**
      * Tạo mã đơn hàng tự động: FT-YYYYMMDD-XXXX
      */
     private function generateOrderCode()
     {
         $today = now()->format('Ymd');
         $prefix = 'FT-' . $today . '-';
-        
+
         // Lấy đơn hàng cuối cùng trong ngày
         $lastOrder = Order::where('order_code', 'like', $prefix . '%')
             ->orderBy('order_code', 'desc')
             ->first();
-        
+
         if ($lastOrder) {
             // Lấy số cuối và tăng lên 1
             $lastNumber = (int) substr($lastOrder->order_code, -4);
@@ -362,7 +478,7 @@ class OrderController extends Controller
         } else {
             $newNumber = 1;
         }
-        
+
         return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 

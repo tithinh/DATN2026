@@ -20,14 +20,9 @@ class Order extends Model
         'final_amount',
         'total_amount',
         'status',
-        'shipping_method',
         'payment_method',
+        'shipping_address',
         'note',
-        'customer_name',
-        'customer_phone',
-        'customer_email',
-        'customer_address',
-        'customer_district',
     ];
 
     protected $casts = [

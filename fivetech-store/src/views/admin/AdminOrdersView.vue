@@ -44,11 +44,11 @@
           </thead>
           <tbody>
             <tr v-for="order in paginatedOrders" :key="order.id">
-              <td style="font-weight:700; color: var(--admin-text);">#{{ order.id }}</td>
+              <td style="font-weight:700; color: var(--admin-text);">{{ order.order_code || '#' + order.id }}</td>
               <td style="font-weight:500; color: var(--admin-text);">{{ order.customer_name }}</td>
               <td>{{ order.phone }}</td>
               <td>{{ formatDate(order.created_at) }}</td>
-              <td style="font-weight:600; color: var(--admin-warning);">{{ formatPrice(order.total) }}</td>
+              <td style="font-weight:600; color: var(--admin-warning);">{{ formatPrice(order.total_amount) }}</td>
               <td>
                 <span class="status-badge" :class="order.status">
                   {{ order.status_text }}
@@ -109,14 +109,14 @@
               </div>
               <div class="info-row">
                 <span class="info-label">Địa chỉ:</span>
-                <span class="info-value">{{ selectedOrder.address }}</span>
+                <span class="info-value">{{ selectedOrder.shipping_address || 'Không có' }}</span>
               </div>
             </div>
             <div class="order-info-card">
               <h4>📦 Thông tin đơn hàng</h4>
               <div class="info-row">
                 <span class="info-label">Mã đơn:</span>
-                <span class="info-value" style="font-weight:700;">#{{ selectedOrder.id }}</span>
+                <span class="info-value" style="font-weight:700;">{{ selectedOrder.order_code || '#' + selectedOrder.id }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Ngày đặt:</span>
@@ -124,7 +124,15 @@
               </div>
               <div class="info-row">
                 <span class="info-label">Tổng tiền:</span>
-                <span class="info-value" style="color: var(--admin-warning); font-weight:700;">{{ formatPrice(selectedOrder.total) }}</span>
+                <span class="info-value" style="color: var(--admin-warning); font-weight:700;">{{ formatPrice(selectedOrder.total_amount) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Giảm giá:</span>
+                <span class="info-value">{{ formatPrice(selectedOrder.discount_amount) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Thanh toán:</span>
+                <span class="info-value" style="color: var(--admin-success); font-weight:700;">{{ formatPrice(selectedOrder.final_amount) }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Trạng thái:</span>
@@ -144,47 +152,16 @@
                   <tr>
                     <th>Phương thức</th>
                     <th>Trạng thái</th>
-                    <th>Mã giao dịch</th>
-                    <th>Ngày thanh toán</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td style="font-weight: 600;">{{ selectedOrder.payment_method || 'COD' }}</td>
                     <td>
-                      <span class="status-badge" :class="selectedOrder.payment_status === 'paid' ? 'completed' : 'pending'">
-                        {{ selectedOrder.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+                      <span class="status-badge" :class="selectedOrder.status === 'completed' || selectedOrder.status === 'delivered' ? 'completed' : 'pending'">
+                        {{ selectedOrder.status === 'completed' || selectedOrder.status === 'delivered' ? 'Đã thanh toán' : 'Chờ thanh toán' }}
                       </span>
                     </td>
-                    <td style="font-family: monospace;">{{ selectedOrder.transaction_id || '---' }}</td>
-                    <td>{{ selectedOrder.payment_date || formatDate(selectedOrder.created_at) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Products in Order -->
-          <div style="margin-bottom: 20px;">
-            <h4 style="font-size: 14px; font-weight: 600; color: var(--admin-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">🛒 Sản phẩm trong đơn</h4>
-            <div class="admin-table-wrapper" style="background: var(--admin-bg); border: 1px solid var(--admin-border); border-radius: var(--admin-radius);">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>Sản phẩm</th>
-                    <th>Biến thể</th>
-                    <th>Đơn giá</th>
-                    <th>Số lượng</th>
-                    <th>Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in selectedOrder.items" :key="item.id">
-                    <td style="font-weight: 500; color: var(--admin-text);">{{ item.product_name }}</td>
-                    <td>{{ item.variant_name || 'Mặc định' }}</td>
-                    <td>{{ formatPrice(item.price) }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td style="font-weight: 600; color: var(--admin-text);">{{ formatPrice(item.subtotal) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -196,7 +173,10 @@
             <label>Cập nhật trạng thái đơn hàng</label>
             <select class="admin-select" v-model="selectedOrder.status">
               <option value="pending">Chờ xử lý</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="processing">Đang xử lý</option>
               <option value="shipping">Đang giao</option>
+              <option value="delivered">Đã giao</option>
               <option value="completed">Hoàn thành</option>
               <option value="cancelled">Đã huỷ</option>
             </select>
@@ -226,6 +206,10 @@ const orders = ref([])
 const totalItems = ref(0)
 const totalPages = ref(1)
 
+// Computed for pagination
+const startItem = computed(() => (currentPage.value - 1) * itemsPerPage + 1)
+const endItem = computed(() => Math.min(currentPage.value * itemsPerPage, totalItems.value))
+
 // Debounce search
 let debounceTimer
 const debouncedFetchOrders = () => {
@@ -243,7 +227,7 @@ const fetchOrders = async () => {
       per_page: itemsPerPage,
       page: currentPage.value
     }
-    const res = await api.get('/orders', { params })
+    const res = await api.get('/admin/orders', { params })
     orders.value = res.data.data || res.data || []
     totalItems.value = res.data.total || orders.value.length
     totalPages.value = res.data.last_page || Math.ceil(totalItems.value / itemsPerPage)
@@ -294,7 +278,7 @@ const closeDetail = () => {
 
 const updateOrderStatus = async () => {
   try {
-    await api.put(`/orders/${selectedOrder.value.id}`, { status: selectedOrder.value.status })
+    await api.put(`/admin/orders/${selectedOrder.value.id}/status`, { status: selectedOrder.value.status })
     fetchOrders()
     closeDetail()
   } catch (err) {
@@ -307,7 +291,10 @@ const updateOrderStatus = async () => {
 <style scoped>
 /* Giữ nguyên style cũ của bạn */
 .status-badge.pending { background: #fef3c7; color: #d97706; }
+.status-badge.confirmed { background: #dbeafe; color: #2563eb; }
+.status-badge.processing { background: #e0e7ff; color: #4f46e5; }
 .status-badge.shipping { background: #dbeafe; color: #2563eb; }
+.status-badge.delivered { background: #d1fae5; color: #059669; }
 .status-badge.completed { background: #d1fae5; color: #059669; }
 .status-badge.cancelled { background: #fee2e2; color: #dc2626; }
 </style>
