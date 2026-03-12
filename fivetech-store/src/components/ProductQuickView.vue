@@ -13,8 +13,8 @@
           <!-- Product Gallery -->
           <div class="quickview-gallery">
             <div class="main-image">
-              <img 
-                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+              <img
+                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -28,7 +28,7 @@
                 :class="{ active: activeImage === img }"
                 @click="activeImage = img"
               >
-                <img :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]" :alt="`${product.name} ${+index + 1}`" />
+                <img :src="storageUrl(product.variants?.[0]?.image_urls?.[0])" :alt="`${product.name} ${+index + 1}`" />
               </button>
             </div>
           </div>
@@ -115,6 +115,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
+import { storageUrl } from '@/utils/image'
 
 const props = defineProps<{
   isOpen: boolean

@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import MainLayout from '@/layouts/MainLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-
+import { useAdminAuthStore } from '@/stores/adminAuth'
 // Public routes (không cần đăng nhập)
 const publicRoutes = [
   // Home page with its own header/footer (standalone)
@@ -29,19 +29,19 @@ const publicRoutes = [
         path: '/account',
         name: 'UserProfile',
         component: () => import('@/views/cilent/UserProfile.vue'),
-        meta: { title: 'Tài khoản của tôi' }
+        meta: { title: 'Tài khoản của tôi', requiresAuth: true }
   },
   {
         path: '/profile/edit',
         name: 'ProfileEdit',
         component: () => import('@/views/cilent/ProfileEdit.vue'),
-        meta: { title: 'Chỉnh sửa thông tin' }
+        meta: { title: 'Chỉnh sửa thông tin', requiresAuth: true }
   },
   {
         path: '/profile/change-password',
         name: 'ChangePassword',
         component: () => import('@/views/cilent/ChangePassword.vue'),
-        meta: { title: 'Đổi mật khẩu' }
+        meta: { title: 'Đổi mật khẩu', requiresAuth: true }
   },
   {
         path: '/forgot-password',
@@ -107,7 +107,7 @@ const publicRoutes = [
       },
       { path: 'checkout', name: 'Checkout', component: () => import('@/views/cilent/CheckoutView.vue'), meta: { title: 'Thanh toán' } },
       { path: 'order-success', name: 'OrderSuccess', component: () => import('@/views/cilent/OrderSuccess.vue'), meta: { title: 'Đặt hàng thành công' } },
-      { path: 'orders/:id', name: 'OrderDetail', component: () => import('@/views/cilent/OrderDetail.vue'), meta: { title: 'Chi tiết đơn hàng' } }
+      { path: 'orders/:id', name: 'OrderDetail', component: () => import('@/views/cilent/OrderDetail.vue'), meta: { title: 'Chi tiết đơn hàng', requiresAuth: true } }
     ]
   }
 ]
@@ -222,29 +222,38 @@ const router = createRouter({
   }
 })
 
-// // Navigation Guards (ví dụ cơ bản - bạn có thể mở rộng sau)
-// router.beforeEach((to, from, next) => {
-//   // Cập nhật title
-//   document.title = to.meta.title ? `${to.meta.title} | FiveTech Store` : 'FiveTech Store'
+// Navigation Guards
+router.beforeEach((to, from, next) => {
+  // Cập nhật title
+  document.title = to.meta.title ? `${to.meta.title} | FiveTech` : 'FiveTech'
 
-//   // Kiểm tra requiresAuth
-//   const isAuthenticated = !!localStorage.getItem('token') // thay bằng logic auth thật của bạn (Pinia store)
+  // Kiểm tra admin auth
+  const adminAuth = useAdminAuthStore()
+  adminAuth.init()
+  const isAdmin = adminAuth.isAuthenticated
 
-//   if (to.meta.requiresAuth && !isAuthenticated) {
-//     next({ name: 'Login', query: { redirect: to.fullPath } })
-//   } else if (to.meta.guestOnly && isAuthenticated) {
-//     next({ name: 'Home' })
-//   } else if (to.meta.requiresAdmin) {
-//     // Giả sử bạn có role trong store hoặc token
-//     const isAdmin = true // thay bằng check thật: user.role === 'admin'
-//     if (!isAdmin) {
-//       next({ name: 'Home' })
-//     } else {
-//       next()
-//     }
-//   } else {
-//     next()
-//   }
-// })
+  if (to.meta.requiresAdmin && !isAdmin) {
+    return next({ name: 'AdminLogin' })
+  }
+
+  if (to.meta.requiresAdmin && isAdmin && to.name === 'AdminLogin') {
+    return next({ name: 'AdminDashboard' })
+  }
+
+  // Kiểm tra user auth
+  if (to.meta.requiresAuth && !to.meta.requiresAdmin) {
+    const userToken = localStorage.getItem('token')
+    if (!userToken) {
+      return next({ name: 'Login', query: { redirect: to.fullPath } })
+    }
+  }
+
+  // Chặn trang guestOnly khi đã đăng nhập
+  if (to.meta.guestOnly && localStorage.getItem('token')) {
+    return next({ name: 'UserProfile' })
+  }
+
+  next()
+})
 
 export default router

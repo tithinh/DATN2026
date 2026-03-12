@@ -10,8 +10,6 @@ class Order extends Model
     use HasFactory;
 
     protected $primaryKey = 'order_id';
-    public $incrementing = false;
-    protected $keyType = 'string';
     protected $fillable = [
         'user_id',
         'order_code',
@@ -23,14 +21,19 @@ class Order extends Model
         'payment_method',
         'shipping_address',
         'note',
+        'shipping_method',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
+        'customer_address',
     ];
 
     protected $casts = [
-        'total_amount'     => 'decimal:2',
-        'discount_amount'  => 'decimal:2',
-        'final_amount'     => 'decimal:2',
-        'status'           => 'string',
-        'payment_method'   => 'string',
+        'total_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'final_amount' => 'decimal:2',
+        'status' => 'string',
+        'payment_method' => 'string',
     ];
 
     // Relationships
@@ -47,5 +50,11 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class, 'order_id');
+    }
+
+    // Thêm product thông qua items
+    public function products()
+    {
+        return $this->hasManyThrough(Product::class, OrderItem::class, 'order_id', 'product_id');
     }
 }

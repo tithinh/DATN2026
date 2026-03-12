@@ -238,7 +238,7 @@ const subtotal = computed(() => {
 })
 
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
+  return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
 
 // Tracking Steps (dựa trên status từ API)
@@ -247,27 +247,21 @@ const trackingSteps = computed(() => {
 
   return [
     {
-      label: 'Đã đặt hàng',
-      status: status === 'pending' || status === 'confirmed' || status === 'shipping' || status === 'delivered' ? 'completed' : 'pending',
+      label: 'Chờ xử lý',
+      status: status === 'pending' || status === 'shipping' || status === 'completed' ? 'completed' : 'pending',
       time: orderData.value?.created_at ? formatDate(orderData.value.created_at) : '',
       icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
     },
     {
-      label: 'Xác nhận',
-      status: status === 'confirmed' || status === 'shipping' || status === 'delivered' ? 'completed' : (status === 'pending' ? 'current' : 'pending'),
-      time: orderData.value?.confirmed_at ? formatDate(orderData.value.confirmed_at) : 'Đang xử lý',
-      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
-    },
-    {
       label: 'Đang giao',
-      status: status === 'shipping' || status === 'delivered' ? 'completed' : (status === 'confirmed' ? 'current' : 'pending'),
+      status: status === 'shipping' || status === 'completed' ? 'completed' : (status === 'pending' ? 'current' : 'pending'),
       time: orderData.value?.shipping_at ? formatDate(orderData.value.shipping_at) : '',
       icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
     },
     {
-      label: 'Đã giao',
-      status: status === 'delivered' ? 'completed' : (status === 'shipping' ? 'current' : 'pending'),
-      time: orderData.value?.delivered_at ? formatDate(orderData.value.delivered_at) : '',
+      label: 'Hoàn thành',
+      status: status === 'completed' ? 'completed' : (status === 'shipping' ? 'current' : 'pending'),
+      time: orderData.value?.completed_at ? formatDate(orderData.value.completed_at) : '',
       icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
     }
   ]

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -lhS /c/Users/Asus/Documents/GitHub/DATN2026/backend/*.php /c/Users/Asus/Documents/GitHub/DATN2026/backend/*.txt)",
+      "Read(//c/Users/Asus/Documents/GitHub/DATN2026/**)",
+      "Bash(ls -lhS /c/Users/Asus/Documents/GitHub/DATN2026/backend/public/*.php)",
+      "Bash(php artisan tinker --execute=\"echo App\\\\Models\\\\Admin::count\\(\\) . '' admin\\(s\\) found''; App\\\\Models\\\\Admin::all\\([''admin_id'',''username'',''email'',''role'',''is_active'']\\)->each\\(fn\\($a\\) => print_r\\($a->toArray\\(\\)\\)\\);\")",
+      "Bash(php artisan tinker --execute=\"echo App\\\\Models\\\\Admin::count\\(\\);\")",
+      "Bash(php artisan tinker --execute=\"print_r\\(App\\\\Models\\\\Admin::all\\([''admin_id'',''username'',''email'',''role'',''is_active'']\\)->toArray\\(\\)\\);\")",
+      "Bash(php artisan tinker --execute=\"App\\\\Models\\\\Admin::where\\(''username'',''admin''\\)->update\\([''password_hash'' => bcrypt\\(''12345678''\\)]\\); echo ''Done'';\")",
+      "Bash(php artisan tinker --execute=\":*)",
+      "Bash(curl -s -H \"Authorization: Bearer 30|3tDAz2SGwVZqMtyKIiDtXDv99OMaL7PHWn226GTw040a542e\" -H \"Accept: application/json\" \"http://localhost:8000/api/v1/admin/products?per_page=5\")",
+      "Bash(curl -s -H \"Authorization: Bearer 30|3tDAz2SGwVZqMtyKIiDtXDv99OMaL7PHWn226GTw040a542e\" -H \"Accept: application/json\" \"http://localhost:8000/api/v1/admin/products?per_page=3\")",
+      "Bash(curl -s -H \"Authorization: Bearer 30|3tDAz2SGwVZqMtyKIiDtXDv99OMaL7PHWn226GTw040a542e\" -H \"Accept: application/json\" \"http://localhost:8000/api/v1/admin/users?per_page=3\")",
+      "Bash(curl -s -H \"Authorization: Bearer 30|3tDAz2SGwVZqMtyKIiDtXDv99OMaL7PHWn226GTw040a542e\" -H \"Accept: application/json\" \"http://localhost:8000/api/v1/admin/products?per_page=2\")",
+      "Bash(node -e \"console.log\\(''string:'', ''249000.00''.toLocaleString\\(''vi-VN''\\)\\); console.log\\(''number:'', \\(249000\\).toLocaleString\\(''vi-VN''\\)\\); console.log\\(''parseFloat:'', parseFloat\\(''249000.00''\\).toLocaleString\\(''vi-VN''\\)\\)\")"
+    ]
+  }
+}

@@ -42,8 +42,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="cat in categories" :key="cat.id">
-              <td style="font-weight:600; color: var(--admin-text);">#{{ cat.id }}</td>
+            <tr v-for="cat in categories" :key="cat.category_id">
+              <td style="font-weight:600; color: var(--admin-text);">#{{ cat.category_id }}</td>
               <td style="font-weight:600; color: var(--admin-text);">
                 <span style="display: inline-flex; align-items: center; gap: 8px;">
                   <span :style="{ width: '8px', height: '8px', borderRadius: '50%', background: cat.color || '#6366f1', display: 'inline-block' }"></span>
@@ -67,6 +67,9 @@
                 <div class="action-btns">
                   <button class="action-btn edit" @click="openEditModal(cat)" title="Sửa">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  </button>
+                  <button class="action-btn delete" @click="deleteCategory(cat)" title="Xóa">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                   </button>
                 </div>
               </td>
@@ -137,7 +140,7 @@ const fetchCategories = async () => {
     const params = {
       search: searchQuery.value.trim()
     }
-    const res = await api.get('/categories', { params })
+    const res = await api.get('/admin/categories', { params })
     categories.value = res.data.data || res.data || []
     totalItems.value = res.data.total || categories.value.length
   } catch (err) {
@@ -182,13 +185,23 @@ const closeModal = () => {
   showModal.value = false
 }
 
+const deleteCategory = async (cat) => {
+  if (!confirm(`Bạn có chắc muốn xóa danh mục "${cat.name}"?`)) return
+  try {
+    await api.delete(`/admin/categories/${cat.category_id}`)
+    await fetchCategories()
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi xóa danh mục')
+  }
+}
+
 const submitForm = async () => {
   try {
     const payload = { ...form.value }
     if (isEditing.value) {
-      await api.put(`/categories/${form.value.id}`, payload)
+      await api.put(`/admin/categories/${form.value.id}`, payload)
     } else {
-      await api.post('/categories', payload)
+      await api.post('/admin/categories', payload)
     }
     fetchCategories()
     closeModal()
@@ -202,7 +215,7 @@ const submitForm = async () => {
 const toggleVisibility = async (cat) => {
   try {
     const newStatus = !cat.is_visible
-    await api.put(`/categories/${cat.id}`, { is_visible: newStatus })
+    await api.put(`/admin/categories/${cat.id}`, { is_visible: newStatus })
     cat.is_visible = newStatus
   } catch (err) {
     console.error('Lỗi cập nhật trạng thái:', err)

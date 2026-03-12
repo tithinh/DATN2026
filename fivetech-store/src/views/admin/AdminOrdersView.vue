@@ -17,7 +17,6 @@
           <option value="pending">Chờ xử lý</option>
           <option value="shipping">Đang giao</option>
           <option value="completed">Hoàn thành</option>
-          <option value="cancelled">Đã huỷ</option>
         </select>
       </div>
     </div>
@@ -168,17 +167,58 @@
             </div>
           </div>
 
+          <!-- Order Items -->
+          <div style="margin-bottom: 20px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--admin-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">📝 Sản phẩm trong đơn</h4>
+            <div class="admin-table-wrapper" style="background: var(--admin-bg); border: 1px solid var(--admin-border); border-radius: var(--admin-radius);">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>STT</th>
+                    <th>Sản phẩm</th>
+                    <th>Biến thể</th>
+                    <th>Đơn giá</th>
+                    <th>Số lượng</th>
+                    <th>Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, index) in selectedOrder.items" :key="index">
+                    <td>{{ index + 1 }}</td>
+                    <td>
+                      <div style="font-weight: 500;">{{ item.product_name }}</div>
+                    </td>
+                    <td>{{ item.variant_name || 'Mặc định' }}</td>
+                    <td>{{ formatPrice(item.price) }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td style="font-weight: 600; color: var(--admin-warning);">{{ formatPrice(item.price * item.quantity) }}</td>
+                  </tr>
+                </tbody>
+                <tfoot v-if="selectedOrder.items && selectedOrder.items.length > 0">
+                  <tr style="background: var(--admin-bg);">
+                    <td colspan="5" style="text-align: right; font-weight: 600;">Tạm tính:</td>
+                    <td style="font-weight: 600;">{{ formatPrice(selectedOrder.total_amount) }}</td>
+                  </tr>
+                  <tr v-if="selectedOrder.discount_amount > 0" style="background: var(--admin-bg);">
+                    <td colspan="5" style="text-align: right; font-weight: 600; color: var(--admin-success);">Giảm giá:</td>
+                    <td style="font-weight: 600; color: var(--admin-success);">-{{ formatPrice(selectedOrder.discount_amount) }}</td>
+                  </tr>
+                  <tr style="background: var(--admin-bg);">
+                    <td colspan="5" style="text-align: right; font-weight: 700; font-size: 15px;">Tổng cộng:</td>
+                    <td style="font-weight: 700; font-size: 15px; color: var(--admin-danger);">{{ formatPrice(selectedOrder.final_amount) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
           <!-- Update Status -->
           <div class="admin-form-group">
             <label>Cập nhật trạng thái đơn hàng</label>
             <select class="admin-select" v-model="selectedOrder.status">
               <option value="pending">Chờ xử lý</option>
-              <option value="confirmed">Đã xác nhận</option>
-              <option value="processing">Đang xử lý</option>
               <option value="shipping">Đang giao</option>
-              <option value="delivered">Đã giao</option>
               <option value="completed">Hoàn thành</option>
-              <option value="cancelled">Đã huỷ</option>
             </select>
           </div>
         </div>
@@ -260,15 +300,25 @@ onMounted(() => {
 })
 
 // Format price
-const formatPrice = (price) => price ? price.toLocaleString('vi-VN') + '₫' : '0₫'
+const formatPrice = (price) => price ? new Intl.NumberFormat('vi-VN').format(price) + '₫' : '0₫'
 
 // Format date
 const formatDate = (date) => new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 // Modal detail
-const openDetail = (order) => {
-  selectedOrder.value = { ...order }
-  showDetail.value = true
+// Fetch order detail
+const openDetail = async (order) => {
+  try {
+    const orderId = order.order_id || order.id
+    const res = await api.get(`/admin/orders/${orderId}`)
+    selectedOrder.value = res.data
+    showDetail.value = true
+  } catch (err) {
+    console.error('Lỗi tải chi tiết đơn hàng:', err)
+    // Fallback to basic info
+    selectedOrder.value = { ...order }
+    showDetail.value = true
+  }
 }
 
 const closeDetail = () => {
@@ -278,9 +328,11 @@ const closeDetail = () => {
 
 const updateOrderStatus = async () => {
   try {
-    await api.put(`/admin/orders/${selectedOrder.value.id}/status`, { status: selectedOrder.value.status })
+    const orderId = selectedOrder.value.order_id || selectedOrder.value.id
+    await api.put(`/admin/orders/${orderId}/status`, { status: selectedOrder.value.status })
     fetchOrders()
     closeDetail()
+    alert('Cập nhật trạng thái thành công!')
   } catch (err) {
     console.error('Lỗi cập nhật trạng thái:', err)
     alert('Có lỗi khi cập nhật trạng thái đơn hàng')
@@ -291,10 +343,6 @@ const updateOrderStatus = async () => {
 <style scoped>
 /* Giữ nguyên style cũ của bạn */
 .status-badge.pending { background: #fef3c7; color: #d97706; }
-.status-badge.confirmed { background: #dbeafe; color: #2563eb; }
-.status-badge.processing { background: #e0e7ff; color: #4f46e5; }
 .status-badge.shipping { background: #dbeafe; color: #2563eb; }
-.status-badge.delivered { background: #d1fae5; color: #059669; }
 .status-badge.completed { background: #d1fae5; color: #059669; }
-.status-badge.cancelled { background: #fee2e2; color: #dc2626; }
 </style>

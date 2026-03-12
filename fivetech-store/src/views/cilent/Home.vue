@@ -43,7 +43,7 @@
                 <span class="product-badge badge-hot">Hot</span>
                 <div class="product-image-wrapper">
                   <img 
-                    :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                    :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
                     :alt="product.name"
                     class="product-image"
                   />
@@ -120,7 +120,7 @@
               <span class="product-badge badge-new">New</span>
               <div class="product-image-wrapper">
                 <img 
-                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -196,10 +196,10 @@
             class="product-card-link"
           >
             <article class="product-card">
-              <span class="product-badge badge-sale">-{{ Math.round((1 - (product.discount_price / product.base_price)) * 100) }}%</span>
+              <span class="product-badge badge-sale">-{{ product.base_price > 0 ? Math.round((1 - (product.discount_price / product.base_price)) * 100) : 0 }}%</span>
               <div class="product-image-wrapper">
                 <img 
-                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -256,6 +256,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
+import { storageUrl } from '@/utils/image'
 
 import HomeHeader from '@/components/home/HomeHeader.vue'
 import HomeHero from '@/components/home/HomeHero.vue'
@@ -402,9 +403,6 @@ const router = useRouter()
   display: flex;
   gap: 10px;
 }
-
-/* ================= IMPORT GOOGLE FONTS ================= */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ================= BASE STYLES ================= */
 .home-page {

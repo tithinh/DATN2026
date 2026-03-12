@@ -216,7 +216,7 @@
                   <!-- Nội dung bình luận giữ nguyên, chỉ cần đảm bảo ảnh reviewer dùng đúng đường dẫn nếu có -->
                   <div class="review-header">
                     <img
-                      :src="comment.user?.avatar ? 'http://localhost:8000/storage/' + comment.user.avatar : 'https://ui-avatars.com/api/?name=' + (comment.user?.full_name?.charAt(0) || 'K')"
+                      :src="comment.user?.avatar ? storageUrl(comment.user.avatar) : 'https://ui-avatars.com/api/?name=' + (comment.user?.full_name?.charAt(0) || 'K')"
                       alt="Avatar"
                       class="reviewer-avatar"
                     />
@@ -276,6 +276,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import { storageUrl } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -321,7 +322,7 @@ const getMainImage = computed(() => {
   if (selectedImage.value) {
     return selectedImage.value.startsWith('http') 
       ? selectedImage.value 
-      : `http://localhost:8000/storage/${selectedImage.value.replace(/^\/+/, '')}`
+      : storageUrl(selectedImage.value)
   }
 
   // 2. Ảnh đầu tiên của variant đang chọn
@@ -348,7 +349,7 @@ const getMainImage = computed(() => {
     const firstImage = urls[0]
     return firstImage.startsWith('http') 
       ? firstImage 
-      : `http://localhost:8000/storage/${firstImage.replace(/^\/+/, '')}`
+      : storageUrl(firstImage)
   }
 
   return ''
@@ -369,7 +370,7 @@ const variantImages = computed(() => {
   return urls.map(url => {
     return url.startsWith('http') 
       ? url 
-      : `http://localhost:8000/storage/${url.replace(/^\/+/, '')}`
+      : storageUrl(url)
   })
 })
 
@@ -380,14 +381,10 @@ const getRelatedImage = (related) => {
     let path = firstVariant.image_urls[0]
     if (Array.isArray(path)) path = path[0]
     if (path && !path.startsWith('http')) {
-      return `http://localhost:8000/storage/${path.replace(/^\/+/, '')}`
+      return storageUrl(path)
     }
     return path
-<<<<<<< HEAD
   }
-=======
-  }gitignore
->>>>>>> 6d95040 (1)
 }
 
 // Các computed khác giữ nguyên
@@ -423,7 +420,7 @@ const selectVariant = (variant) => {
   
   if (urls.length > 0) {
     const first = urls[0]
-    selectedImage.value = first.startsWith('http') ? first : `http://localhost:8000/storage/${first.replace(/^\/+/, '')}`
+    selectedImage.value = storageUrl(first)
   } else {
     selectedImage.value = null
   }
@@ -496,7 +493,6 @@ onMounted(async () => {
 
   try {
     const res = await api.get(`/products/${slug}`)
-    console.log('API response:', res.data)
 
     product.value = res.data.product || res.data.data || res.data || null
 

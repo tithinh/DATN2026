@@ -42,17 +42,8 @@ export const useCartStore = defineStore('cart', {
       this.error = null
 
       try {
-        let config = {}
-        
-        // Nếu không đăng nhập, sử dụng guest_user_id = 1
-        if (!auth.isAuthenticated) {
-          config = {
-            params: { guest_user_id: 1 }
-          }
-        }
-
-        const res = await api.get('/cart', config)
-        this.items = res.data?.items || res.data || []
+        const res = await api.get('/cart')
+        this.items = res.data?.items || []
         this.couponCode = res.data?.coupon_code || ''
         this.calculateTotals()
       } catch (err) {
@@ -88,56 +79,65 @@ export const useCartStore = defineStore('cart', {
       }
     },
 
-  // Xóa 1 item khỏi giỏ hàng
-  async removeItem(id) {
-    if (!id) {
-      this.error = 'Không có ID sản phẩm để xóa';
-      return;
-    }
-
-    this.loading = true;
-    this.error = null;
-
-    try {
-      await api.delete(`/cart/remove/${id}`);
-
-      // Refresh giỏ hàng sau khi xóa thành công
-      await this.fetchCart();
-
-      // Optional: thông báo thành công (nếu muốn hiển thị toast)
-      // this.success = 'Đã xóa sản phẩm khỏi giỏ hàng';
-    } catch (err) {
-      const errorMessage = err.response?.data?.message 
-        || err.response?.data?.error 
-        || err.message 
-        || 'Không thể xóa sản phẩm. Vui lòng thử lại.';
-
-      this.error = errorMessage;
-      console.error('Lỗi xóa sản phẩm:', err);
-
-      // Nếu token hết hạn → logout
-      if (err.response?.status === 401) {
-        const auth = useAuthStore();
-        auth.logout();
+    // Xóa 1 item khỏi giỏ hàng
+    async removeItem(id) {
+      if (!id) {
+        this.error = 'Không có ID sản phẩm để xóa';
+        return;
       }
-    } finally {
-      this.loading = false;
-    }
-  },
+
+      this.loading = true;
+      this.error = null;
+
+      try {
+        await api.delete(`/cart/remove/${id}`);
+
+        // Refresh giỏ hàng sau khi xóa thành công
+        await this.fetchCart();
+
+        // Optional: thông báo thành công (nếu muốn hiển thị toast)
+        // this.success = 'Đã xóa sản phẩm khỏi giỏ hàng';
+      } catch (err) {
+        const errorMessage = err.response?.data?.message
+          || err.response?.data?.error
+          || err.message
+          || 'Không thể xóa sản phẩm. Vui lòng thử lại.';
+
+        this.error = errorMessage;
+        console.error('Lỗi xóa sản phẩm:', err);
+
+        // Nếu token hết hạn → logout
+        if (err.response?.status === 401) {
+          const auth = useAuthStore();
+          auth.logout();
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
 
     // Áp dụng mã giảm giá
     async applyCoupon(code) {
       if (!code.trim()) return
 
+      // Tính subtotal trước khi gửi
+      this.calculateTotals()
+
       this.loading = true
       try {
-        const res = await api.post('/promotions/check', { code })
+        const res = await api.post('/promotions/check', {
+          code,
+          subtotal: this.subtotal
+        })
         this.discount = res.data?.discount_amount || 0
         this.couponApplied = res.data
         this.couponCode = code
         this.calculateTotals()
       } catch (err) {
-        throw new Error(err.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn')
+        this.discount = 0
+        this.couponApplied = null
+        this.calculateTotals()
+        throw new Error(err.response?.data?.error || err.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn')
       } finally {
         this.loading = false
       }
@@ -145,31 +145,28 @@ export const useCartStore = defineStore('cart', {
 
     // Xóa mã giảm giá
     async removeCoupon() {
-      this.loading = true
-      try {
-        await api.post('/promotions/remove') // nếu có endpoint
-        this.discount = 0
-        this.couponApplied = null
-        this.couponCode = ''
-        this.calculateTotals()
-      } catch (err) {
-        console.error('Remove coupon failed:', err)
-      } finally {
-        this.loading = false
-      }
+      this.discount = 0
+      this.couponApplied = null
+      this.couponCode = ''
+      this.calculateTotals()
     },
 
     // Tính toán lại tất cả tổng tiền
     calculateTotals() {
       // Tính subtotal (tổng trước giảm giá)
       this.subtotal = this.items.reduce((sum, item) => {
-        const unitPrice = (
-          item.variant?.price_extra && Number(item.variant.price_extra) > 0
-            ? (item.price || 0) + Number(item.variant.price_extra)
-            : (item.discount_price || item.price || item.variant?.product?.discount_price || 0)
-        )
+        // Giá gốc = product discount_price hoặc base_price
+        const basePrice = item.product?.discount_price || item.product?.base_price || 0
+        // Cộng thêm price_extra của variant nếu có
+        const extra = (item.variant?.price_extra && Number(item.variant.price_extra) > 0)
+          ? Number(item.variant.price_extra)
+          : 0
+        const unitPrice = Number(basePrice) + extra
         return sum + unitPrice * item.quantity
       }, 0)
+
+      // Tính phí ship động (miễn phí nếu >= 300k)
+      this.finalShippingFee = this.subtotal >= 300000 ? 0 : this.shippingFee
 
       // Tổng cuối cùng = subtotal - discount + phí ship (động)
       this.total = Math.max(0, this.subtotal - this.discount + this.finalShippingFee)

@@ -78,6 +78,9 @@
                   <button class="action-btn edit" @click="openEditModal(p)" title="Sửa">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                   </button>
+                  <button class="action-btn delete" @click="deleteProduct(p)" title="Xóa">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -265,10 +268,10 @@ const products = ref([])
 const categories = ref([])
 const totalItems = ref(0)
 
-// Fetch categories (public)
+// Fetch categories (admin)
 const fetchCategories = async () => {
   try {
-    const res = await api.get('/categories')
+    const res = await api.get('/admin/categories')
     categories.value = res.data.data || res.data || []
   } catch (err) {
     console.error('Lỗi tải danh mục:', err)
@@ -282,7 +285,7 @@ const debouncedFetchProducts = () => {
   debounceTimer = setTimeout(fetchProducts, 500)
 }
 
-// Fetch products (public)
+// Fetch products (admin)
 const fetchProducts = async () => {
   loading.value = true
   try {
@@ -292,7 +295,7 @@ const fetchProducts = async () => {
       per_page: itemsPerPage,
       page: currentPage.value
     }
-    const res = await api.get('/products', { params })
+    const res = await api.get('/admin/products', { params })
     products.value = res.data.data || res.data || []
     totalItems.value = res.data.total || products.value.length
   } catch (err) {
@@ -328,7 +331,7 @@ onMounted(() => {
 })
 
 // Format price & date
-const formatPrice = (price) => price ? price.toLocaleString('vi-VN') + '₫' : '0₫'
+const formatPrice = (price) => price ? new Intl.NumberFormat('vi-VN').format(price) + '₫' : '0₫'
 const formatDate = (date) => new Date(date).toLocaleDateString('vi-VN')
 
 // Modal add/edit
@@ -378,6 +381,16 @@ const closeModal = () => {
   showModal.value = false
 }
 
+const deleteProduct = async (product) => {
+  if (!confirm(`Bạn có chắc muốn xóa sản phẩm "${product.name}"?`)) return
+  try {
+    await api.delete(`/admin/products/${product.product_id}`)
+    await fetchProducts()
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi xóa sản phẩm')
+  }
+}
+
 // Trigger upload main image
 const triggerMainUpload = () => {
   document.getElementById('mainFileInput').click()
@@ -419,8 +432,6 @@ const removeVariant = (index) => {
 // Submit form (thêm/sửa sản phẩm với ảnh)
 const submitForm = async () => {
   try {
-    console.log('Gọi submit sản phẩm với token admin:', localStorage.getItem('admin_token') ? 'Có' : 'Không có')
-    console.log('URL submit:', api.defaults.baseURL + (isEditing.value ? `/admin/products/${form.value.product_id}` : '/admin/products'))
 
     const formData = new FormData()
     formData.append('name', form.value.name)
@@ -463,13 +474,10 @@ const submitForm = async () => {
       })
     }
 
-    console.log('Submit thành công:', res.data)
     fetchProducts()
     closeModal()
   } catch (err) {
     console.error('Lỗi submit sản phẩm:', err)
-    console.log('Response lỗi:', err.response?.data)
-    console.log('Status:', err.response?.status)
     alert('Có lỗi khi lưu sản phẩm: ' + (err.response?.data?.message || 'Kiểm tra console'))
   }
 }
@@ -478,15 +486,11 @@ const submitForm = async () => {
 const toggleVisibility = async (p) => {
   try {
     const newStatus = !p.is_visible
-    console.log('Gọi toggle visibility cho sản phẩm:', p.product_id)
-    console.log('Token admin:', localStorage.getItem('admin_token') ? 'Có' : 'Không có')
-    console.log('URL gọi:', api.defaults.baseURL + `/admin/products/${p.product_id}/toggle-visibility`)
 
     await api.put(`/admin/products/${p.product_id}/toggle-visibility`, { is_visible: newStatus })
     p.is_visible = newStatus
   } catch (err) {
     console.error('Lỗi cập nhật trạng thái:', err)
-    console.log('Response lỗi:', err.response?.data)
     alert('Có lỗi khi cập nhật trạng thái. Kiểm tra console.')
   }
 }

@@ -72,9 +72,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api'
+import { useAdminAuthStore } from '@/stores/adminAuth'
 
 const router = useRouter()
+const adminAuth = useAdminAuthStore()
 
 const email = ref('')
 const password = ref('')
@@ -88,19 +89,16 @@ const handleLogin = async () => {
   isLoading.value = true
 
   try {
-    const res = await api.post('/admin/login', {
-      username: email.value.trim(),
-      password: password.value
-    })
-
-    // Lưu token admin riêng
-    localStorage.setItem('admin_token', res.data.token)
-
-    if (rememberMe.value) {
-      localStorage.setItem('rememberAdmin', 'true')
+    const result = await adminAuth.login(email.value.trim(), password.value)
+    
+    if (result.success) {
+      if (rememberMe.value) {
+        localStorage.setItem('rememberAdmin', 'true')
+      }
+      router.push('/admin')
+    } else {
+      errorMsg.value = result.message || 'Đăng nhập thất bại!'
     }
-
-    router.push('/admin')
   } catch (err) {
     errorMsg.value = err.response?.data?.message || 'Đăng nhập thất bại!'
   } finally {

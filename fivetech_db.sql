@@ -339,6 +339,12 @@ CREATE TABLE `orders` (
   `note` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `shipping_method` varchar(50) DEFAULT NULL,
+  `customer_name` varchar(255) DEFAULT NULL,
+  `customer_phone` varchar(20) DEFAULT NULL,
+  `customer_email` varchar(255) DEFAULT NULL,
+  `customer_address` text DEFAULT NULL,
+  `customer_district` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -361,6 +367,7 @@ INSERT INTO `orders` (`order_id`, `order_code`, `user_id`, `promo_id`, `total_am
 CREATE TABLE `order_items` (
   `order_item_id` int(10) UNSIGNED NOT NULL,
   `order_id` int(10) UNSIGNED DEFAULT NULL,
+  `product_id` int(10) UNSIGNED DEFAULT NULL,
   `variant_id` int(10) UNSIGNED NOT NULL,
   `quantity` int(10) UNSIGNED NOT NULL,
   `price_at_purchase` decimal(12,2) DEFAULT NULL,
@@ -375,14 +382,14 @@ CREATE TABLE `order_items` (
 -- Đang đổ dữ liệu cho bảng `order_items`
 --
 
-INSERT INTO `order_items` (`order_item_id`, `order_id`, `variant_id`, `quantity`, `price_at_purchase`, `rating`, `comment`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 8, 1, 1, NULL, NULL, NULL, '2026-02-25 14:22:11', '2026-02-25 14:22:11', NULL),
-(2, 8, 1, 1, NULL, NULL, NULL, '2026-02-25 14:37:39', '2026-02-25 14:37:39', NULL),
-(3, NULL, 11, 1, NULL, NULL, NULL, '2026-02-26 10:48:40', '2026-02-26 10:48:40', NULL),
-(4, NULL, 3, 1, NULL, NULL, NULL, '2026-02-26 10:48:40', '2026-02-26 10:48:40', NULL),
-(5, NULL, 4, 1, NULL, NULL, NULL, '2026-02-26 10:48:40', '2026-02-26 10:48:40', NULL),
-(6, NULL, 11, 1, NULL, NULL, NULL, '2026-02-26 11:10:16', '2026-02-26 11:10:16', NULL),
-(7, NULL, 1, 1, NULL, NULL, NULL, '2026-02-26 11:32:43', '2026-02-26 11:32:43', NULL);
+INSERT INTO `order_items` (`order_item_id`, `order_id`, `product_id`, `variant_id`, `quantity`, `price_at_purchase`, `rating`, `comment`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 8, NULL, 1, 1, NULL, NULL, NULL, '2026-02-25 14:22:11', '2026-02-25 14:22:11', NULL),
+(2, 8, NULL, 1, 1, NULL, NULL, NULL, '2026-02-25 14:37:39', '2026-02-25 14:37:39', NULL),
+(3, NULL, NULL, 11, 1, NULL, NULL, NULL, '2026-02-26 10:48:40', '2026-02-26 10:48:40', NULL),
+(4, NULL, NULL, 3, 1, NULL, NULL, NULL, '2026-02-26 10:48:40', '2026-02-26 10:48:40', NULL),
+(5, NULL, NULL, 4, 1, NULL, NULL, NULL, '2026-02-26 10:48:40', '2026-02-26 10:48:40', NULL),
+(6, NULL, NULL, 11, 1, NULL, NULL, NULL, '2026-02-26 11:10:16', '2026-02-26 11:10:16', NULL),
+(7, NULL, NULL, 1, 1, NULL, NULL, NULL, '2026-02-26 11:32:43', '2026-02-26 11:32:43', NULL);
 
 -- --------------------------------------------------------
 

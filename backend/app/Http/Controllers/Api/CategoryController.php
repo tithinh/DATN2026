@@ -149,4 +149,16 @@ class CategoryController extends Controller
             'message' => $category->is_active ? 'Đã hiển thị danh mục' : 'Đã ẩn danh mục'
         ]);
     }
+
+    public function destroy($category_id)
+    {
+        $category = Category::findOrFail($category_id);
+
+        if ($category->products()->count() > 0) {
+            return response()->json(['message' => 'Không thể xóa danh mục đang có sản phẩm'], 409);
+        }
+
+        $category->delete();
+        return response()->json(['message' => 'Đã xóa danh mục thành công']);
+    }
 }

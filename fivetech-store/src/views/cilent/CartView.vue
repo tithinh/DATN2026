@@ -69,9 +69,8 @@
 
                 <div class="item-price" data-label="Đơn giá">
                   {{ formatPrice(
-                    item.variant?.price_extra && item.variant.price_extra > 0 
-                      ? (item.price || 0) + Number(item.variant.price_extra)
-                      : (item.discount_price || item.price || item.variant?.product?.discount_price || 0)
+                    (Number(item.product?.discount_price || item.product?.base_price || 0))
+                    + ((item.variant?.price_extra && Number(item.variant.price_extra) > 0) ? Number(item.variant.price_extra) : 0)
                   ) }}
                 </div>
 
@@ -93,9 +92,8 @@
 
                 <div class="item-subtotal col-subtotal" data-label="Thành tiền">
                   {{ formatPrice(
-                    (item.variant?.price_extra && Number(item.variant.price_extra) > 0
-                      ? (item.price || 0) + Number(item.variant.price_extra)
-                      : (item.discount_price || item.price || item.variant?.product?.discount_price || 0)
+                    ((Number(item.product?.discount_price || item.product?.base_price || 0))
+                    + ((item.variant?.price_extra && Number(item.variant.price_extra) > 0) ? Number(item.variant.price_extra) : 0)
                     ) * item.quantity
                   ) }}
                 </div>
@@ -139,9 +137,9 @@
                   class="coupon-input" 
                   :disabled="cartStore.loading"
                 />
-                <button 
-                  class="coupon-btn" 
-                  @click="cartStore.applyCoupon" 
+                <button
+                  class="coupon-btn"
+                  @click="applyCoupon"
                   :disabled="cartStore.loading"
                 >Áp dụng</button>
               </div>
@@ -198,7 +196,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
@@ -207,10 +205,8 @@ const cartStore = useCartStore()
 const auth = useAuthStore()
 const router = useRouter()
 
-const couponCode = ref('')
-
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0)
+  return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
 
 const updateQty = async (id, qty) => {
@@ -232,9 +228,10 @@ const remove = async (id) => {
 }
 
 const applyCoupon = async () => {
-  if (!couponCode.value.trim()) return alert('Vui lòng nhập mã giảm giá')
+  const code = cartStore.couponCode?.trim()
+  if (!code) return alert('Vui lòng nhập mã giảm giá')
   try {
-    await cartStore.applyCoupon(couponCode.value.trim())
+    await cartStore.applyCoupon(code)
     alert('Áp dụng mã giảm giá thành công!')
   } catch (err) {
     alert('Mã giảm giá không hợp lệ hoặc đã hết hạn: ' + (err.response?.data?.message || err.message))

@@ -11,7 +11,7 @@
     <div class="product-image-wrapper">
       <!-- Hình ảnh -->
       <img 
-        :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+        :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
         :alt="product.name"
         class="product-image"
       />
@@ -109,6 +109,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
+import { storageUrl } from '@/utils/image'
 
 const props = defineProps<{
   product: {

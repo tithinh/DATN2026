@@ -78,10 +78,12 @@ class ProductVariant extends Model
 
     /**
      * Accessor: Giá cuối cùng của variant (giá gốc sản phẩm + price_extra)
+     * Dùng discount_price nếu có, không thì base_price
      */
     public function getFinalPriceAttribute(): float
     {
-        return ($this->product->price ?? 0) + ($this->price_extra ?? 0);
+        $basePrice = $this->product->discount_price ?? $this->product->base_price ?? 0;
+        return (float) $basePrice + ($this->price_extra ?? 0);
     }
 
     /**

@@ -200,10 +200,9 @@
                       <div class="progress-fill" :style="{ width: order.progress + '%' }"></div>
                     </div>
                     <div class="progress-steps">
-                      <div class="step" :class="{ completed: order.step >= 1 }"><span class="step-dot"></span><span class="step-label">Đặt hàng</span></div>
-                      <div class="step" :class="{ completed: order.step >= 2 }"><span class="step-dot"></span><span class="step-label">Xác nhận</span></div>
-                      <div class="step" :class="{ completed: order.step >= 3 }"><span class="step-dot"></span><span class="step-label">Vận chuyển</span></div>
-                      <div class="step" :class="{ completed: order.step >= 4 }"><span class="step-dot"></span><span class="step-label">Thành công</span></div>
+                      <div class="step" :class="{ completed: order.progress >= 33 }"><span class="step-dot"></span><span class="step-label">Chờ xử lý</span></div>
+                      <div class="step" :class="{ completed: order.progress >= 66 }"><span class="step-dot"></span><span class="step-label">Đang giao</span></div>
+                      <div class="step" :class="{ completed: order.progress >= 100 }"><span class="step-dot"></span><span class="step-label">Hoàn thành</span></div>
                     </div>
                   </div>
 
@@ -226,7 +225,8 @@
                     </div>
                     <div class="order-actions">
                       <button class="action-btn outline" @click="viewOrderDetail(order.order_code)">Xem chi tiết</button>
-                      <button class="action-btn primary" v-if="order.status === 'shipping'">Theo dõi vận chuyển</button>
+                      <button class="action-btn danger" v-if="order.status === 'pending'" @click="cancelOrder(order)">Hủy đơn</button>
+                      <button class="action-btn primary" v-if="order.status === 'shipping'" @click="confirmReceived(order)">Đã nhận hàng</button>
                     </div>
                   </div>
                 </div>
@@ -279,7 +279,6 @@
                     </div>
                     <div class="order-actions">
                       <button class="action-btn outline" @click="viewOrderDetail(order.order_code)">Xem chi tiết</button>
-                      <button v-if="order.status === 'delivered'" class="action-btn primary" @click="reorder(order)">Mua lại</button>
                     </div>
                   </div>
                 </div>
@@ -384,7 +383,7 @@ const tabs = [
 ]
 
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0)
+  return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
 
 const handleLogout = async () => {
@@ -416,7 +415,39 @@ const viewOrderDetail = (orderId) => {
 const reorder = (order) => {
   // Chuyển hướng đến trang sản phẩm đầu tiên trong đơn hàng
   if (order.items && order.items.length > 0) {
-    router.push(`/products/${order.items[0].product_id}`)
+    router.push(`/products/${order.items[0].slug}`)
+  }
+}
+
+const cancelOrder = async (order) => {
+  if (!confirm('Bạn có chắc muốn hủy đơn hàng này?')) return
+  try {
+    const orderId = order.order_code || order.id
+    await api.post(`/orders/${orderId}/cancel`)
+    alert('Đã hủy đơn hàng thành công!')
+    // Reload orders
+    const ordersRes = await api.get('/orders')
+    currentOrders.value = ordersRes.data.current || []
+    orderHistory.value = ordersRes.data.history || []
+  } catch (err) {
+    console.error('Cancel order failed:', err)
+    alert(err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng thử lại!')
+  }
+}
+
+const confirmReceived = async (order) => {
+  if (!confirm('Xác nhận bạn đã nhận được hàng?')) return
+  try {
+    const orderId = order.order_code || order.id
+    await api.post(`/orders/${orderId}/confirm-received`)
+    alert('Xác nhận nhận hàng thành công!')
+    // Reload orders
+    const ordersRes = await api.get('/orders')
+    currentOrders.value = ordersRes.data.current || []
+    orderHistory.value = ordersRes.data.history || []
+  } catch (err) {
+    console.error('Confirm received failed:', err)
+    alert(err.response?.data?.message || 'Không thể xác nhận. Vui lòng thử lại!')
   }
 }
 
@@ -624,9 +655,14 @@ onMounted(async () => {
   color: #16a34a;
 }
 
-.order-card.history .order-status.cancelled {
+.action-btn.danger {
   background: #fee2e2;
   color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.action-btn.danger:hover {
+  background: #fecaca;
 }
 
 /* Spinner */

@@ -12,7 +12,7 @@ class OrderItem extends Model
     protected $primaryKey = 'order_item_id';
 
     protected $fillable = [
-        'order_id', 'variant_id', 'quantity', 'price_at_purchase',
+        'order_id', 'product_id', 'variant_id', 'quantity', 'price_at_purchase',
         'rating', 'comment',
     ];
 
@@ -21,6 +21,12 @@ class OrderItem extends Model
         'quantity'          => 'integer',
         'rating'            => 'integer',
     ];
+
+    // Accessor để dùng price thay cho price_at_purchase
+    public function getPriceAttribute()
+    {
+        return $this->price_at_purchase;
+    }
 
     // Relationships
     public function order()
@@ -31,5 +37,10 @@ class OrderItem extends Model
     public function variant()
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+    
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 }

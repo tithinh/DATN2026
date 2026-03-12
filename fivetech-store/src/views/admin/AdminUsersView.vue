@@ -67,6 +67,9 @@
                   <button class="action-btn edit" @click="openEditModal(user)" title="Sửa">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                   </button>
+                  <button class="action-btn delete" @click="deleteUser(user)" title="Xóa">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -122,6 +125,22 @@
               <span style="font-size: 14px; color: var(--admin-text-soft);">{{ editingUser.is_active ? 'Hoạt động' : 'Bị khoá' }}</span>
             </div>
           </div>
+          <div class="admin-form-group">
+            <label>Đặt lại mật khẩu <span style="font-size: 12px; color: var(--admin-text-soft); font-weight: 400;">(bỏ trống nếu không đổi)</span></label>
+            <div class="password-input-wrapper">
+              <input 
+                class="admin-input" 
+                v-model="editingUser.new_password" 
+                :type="showPassword ? 'text' : 'password'" 
+                placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)" 
+                autocomplete="new-password" 
+              />
+              <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword">
+                <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="admin-modal-footer">
           <button class="admin-btn admin-btn-outline" @click="showEditModal = false">Huỷ</button>
@@ -142,6 +161,7 @@ const itemsPerPage = 10
 const loading = ref(false)
 const showEditModal = ref(false)
 const editingUser = ref(null)
+const showPassword = ref(false)
 
 const users = ref([])
 const totalItems = ref(0)
@@ -162,18 +182,15 @@ const fetchUsers = async () => {
       page: currentPage.value
     }
 
-    console.log('🔄 Gọi API users:', '/admin/users', 'params:', params)
 
     const res = await api.get('/admin/users', { params })
 
-    console.log('✅ Response users:', res.data)
 
     users.value = res.data.data || res.data || []
     totalItems.value = res.data.total || users.value.length
     totalPages.value = res.data.last_page || Math.ceil(totalItems.value / itemsPerPage)
   } catch (err) {
     console.error('❌ Lỗi tải người dùng:', err)
-    console.log('Response lỗi:', err.response?.data)
   } finally {
     loading.value = false
   }
@@ -217,7 +234,8 @@ const toggleUserStatus = async (user) => {
 
 // Edit modal
 const openEditModal = (user) => {
-  editingUser.value = { ...user }
+  editingUser.value = { ...user, new_password: '' }
+  showPassword.value = false
   showEditModal.value = true
 }
 
@@ -231,12 +249,31 @@ const saveUser = async () => {
       address: editingUser.value.address,
       is_active: editingUser.value.is_active
     }
+    // Chỉ gửi mật khẩu mới nếu admin có nhập
+    if (editingUser.value.new_password && editingUser.value.new_password.trim()) {
+      if (editingUser.value.new_password.length < 6) {
+        alert('Mật khẩu phải có ít nhất 6 ký tự!')
+        return
+      }
+      payload.new_password = editingUser.value.new_password
+    }
     await api.put(`/admin/users/${id}`, payload)
     fetchUsers()
     showEditModal.value = false
+    alert('Cập nhật thông tin người dùng thành công!' + (payload.new_password ? ' Mật khẩu đã được đặt lại.' : ''))
   } catch (err) {
     console.error('Lỗi cập nhật user:', err)
-    alert('Có lỗi khi lưu thay đổi')
+    alert(err.response?.data?.message || 'Có lỗi khi lưu thay đổi')
+  }
+}
+
+const deleteUser = async (user) => {
+  if (!confirm(`Bạn có chắc muốn xóa người dùng "${user.full_name || user.email}"?`)) return
+  try {
+    await api.delete(`/admin/users/${user.user_id}`)
+    await fetchUsers()
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi xóa người dùng')
   }
 }
 </script>
@@ -277,5 +314,35 @@ const saveUser = async () => {
 
 .toggle-switch.active::before {
   transform: translateX(20px);
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .admin-input {
+  padding-right: 44px;
+  width: 100%;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--admin-text-soft);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.password-toggle-btn:hover {
+  color: var(--admin-text);
 }
 </style>

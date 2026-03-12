@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\DashboardController;
 
 // Tất cả route trong api.php đã có prefix /api tự động
 
@@ -72,16 +73,6 @@ Route::prefix('v1')->group(function () {
         // Logout
         Route::post('/logout', [AuthController::class, 'logout']);
 
-        // Cart
-        Route::prefix('cart')->group(function () {
-            Route::get('/', [CartController::class, 'index']);
-            Route::post('/add', [CartController::class, 'add']);
-            Route::put('/update', [CartController::class, 'update']);
-            Route::delete('/remove/{id}', [CartController::class, 'remove']);
-            Route::delete('/clear', [CartController::class, 'clear']);
-            Route::get('/total', [CartController::class, 'total']);
-        });
-
         // Wishlist
         Route::prefix('wishlist')->group(function () {
             Route::get('/', [WishlistController::class, 'index']);
@@ -90,10 +81,9 @@ Route::prefix('v1')->group(function () {
             Route::delete('/clear', [WishlistController::class, 'clear']);
         });
 
-        // Orders (cho user)
+        // Orders (cho user đã đăng nhập)
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'index']);
-            Route::post('/', [OrderController::class, 'store']);
             Route::post('/{order_id}/cancel', [OrderController::class, 'cancel']);
             Route::post('/{order_id}/confirm-received', [OrderController::class, 'confirmReceived']);
             Route::post('/checkout/validate', [OrderController::class, 'validateCheckout']);
@@ -113,16 +103,17 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Guest Cart (không cần đăng nhập)
-    Route::prefix('guest/cart')->group(function () {
-        Route::get('/', [CartController::class, 'guestIndex']);
-        Route::post('/add', [CartController::class, 'addGuest']);
-        Route::put('/update', [CartController::class, 'updateGuest']);
-        Route::delete('/remove/{variant_id}', [CartController::class, 'removeGuest']);
-        Route::delete('/clear', [CartController::class, 'clearGuest']);
+    // Public Cart (for guests - no auth required)
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [CartController::class, 'index']);
+        Route::post('/add', [CartController::class, 'add']);
+        Route::put('/update', [CartController::class, 'update']);
+        Route::delete('/remove/{id}', [CartController::class, 'remove']);
+        Route::delete('/clear', [CartController::class, 'clear']);
+        Route::get('/total', [CartController::class, 'total']);
     });
 
-    // PUBLIC ORDER CREATION (cho cả guest và user)
+    // PUBLIC ORDER CREATION (cho cả guest và user đã đăng nhập)
     Route::post('/orders', [OrderController::class, 'store']);
 
     // PUBLIC ORDER VIEW (cho guest xem đơn hàng sau khi đặt)
@@ -135,6 +126,8 @@ Route::prefix('v1')->group(function () {
     // ======================
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
 
+        // Dashboard stats
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
 
         // Quản lý người dùng (khách hàng)
         Route::prefix('users')->group(function () {
@@ -142,6 +135,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{user_id}', [UserController::class, 'show']);      // Chi tiết user
             Route::put('/{user_id}', [UserController::class, 'update']);    // Sửa user
             Route::put('/{user_id}/toggle-status', [UserController::class, 'toggleStatus']); // Ẩn/hiện
+            Route::delete('/{user_id}', [UserController::class, 'destroy']); // Xóa user
         });
 
         // Quản lý danh mục
@@ -151,6 +145,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{category_id}', [CategoryController::class, 'show']);
             Route::put('/{category_id}', [CategoryController::class, 'update']);
             Route::put('/{category_id}/toggle-status', [CategoryController::class, 'toggleStatus']);
+            Route::delete('/{category_id}', [CategoryController::class, 'destroy']); // Xóa danh mục
         });
 
         // Quản lý sản phẩm
@@ -166,7 +161,7 @@ Route::prefix('v1')->group(function () {
         // Quản lý đơn hàng
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'adminIndex']);        // Danh sách đơn hàng
-            Route::get('/{order_id}', [OrderController::class, 'show']);
+            Route::get('/{order_id}', [OrderController::class, 'adminShow']);        // Chi tiết cho admin
             Route::put('/{order_id}/status', [OrderController::class, 'updateStatus']); // Cập nhật trạng thái
         });
 
@@ -179,11 +174,12 @@ Route::prefix('v1')->group(function () {
 
         // Quản lý khuyến mãi
         Route::prefix('promotions')->group(function () {
-            Route::get('/', [PromotionController::class, 'adminIndex']);     // Danh
-            Route::post('/', [PromotionController::class, 'store']);         // Thêm khuyến mãi
+            Route::get('/', [PromotionController::class, 'adminIndex']);
+            Route::post('/', [PromotionController::class, 'store']);
             Route::get('/{promotion_id}', [PromotionController::class, 'show']);
             Route::put('/{promotion_id}', [PromotionController::class, 'update']);
             Route::put('/{promotion_id}/toggle-status', [PromotionController::class, 'toggleStatus']);
+            Route::delete('/{promotion_id}', [PromotionController::class, 'destroy']);
         });
 
         // Quản lý tin tức

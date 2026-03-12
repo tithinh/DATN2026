@@ -44,6 +44,12 @@
             </tr>
           </thead>
           <tbody>
+            <tr v-if="isLoading">
+              <td colspan="8" style="text-align:center; padding: 40px; color: var(--admin-text-muted);">Đang tải...</td>
+            </tr>
+            <tr v-else-if="filteredVouchers.length === 0">
+              <td colspan="8" style="text-align:center; padding: 40px; color: var(--admin-text-muted);">Không có dữ liệu</td>
+            </tr>
             <tr v-for="voucher in filteredVouchers" :key="voucher.id">
               <td style="font-weight:600; color: var(--admin-text);">#{{ voucher.id }}</td>
               <td>
@@ -53,10 +59,10 @@
                 {{ formatDiscount(voucher) }}
               </td>
               <td>{{ formatCurrency(voucher.minOrder) }}</td>
-              <td>{{ voucher.used }} / {{ voucher.limit === -1 ? '∞' : voucher.limit }}</td>
+              <td>{{ voucher.used }} / {{ voucher.limit === null || voucher.limit === -1 ? '∞' : voucher.limit }}</td>
               <td style="color: var(--admin-text-soft);">{{ voucher.endDate }}</td>
               <td>
-                <span class="status-badge" :class="getVoucherStatusClass(voucher)">{{ getVoucherStatusText(voucher) }}</span>
+                <span class="status-badge" :class="getVoucherStatusClass(voucher)" style="cursor:pointer;" @click="toggleVoucherStatus(voucher)" title="Click để thay đổi trạng thái">{{ getVoucherStatusText(voucher) }}</span>
               </td>
               <td>
                 <div class="action-btns">
@@ -75,11 +81,15 @@
 
       <!-- Pagination -->
       <div class="admin-pagination">
-        <div class="pagination-info">Hiển thị 1-{{ filteredVouchers.length }} trên tổng số {{ vouchers.length }} mã</div>
+        <div class="pagination-info">Tổng cộng {{ total }} mã giảm giá</div>
         <div class="pagination-btns">
-          <button class="page-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-          <button class="page-btn active">1</button>
-          <button class="page-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+          <button class="page-btn" @click="goToPage(currentPage - 1)" :disabled="currentPage <= 1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button v-for="p in lastPage" :key="p" class="page-btn" :class="{ active: p === currentPage }" @click="goToPage(p)">{{ p }}</button>
+          <button class="page-btn" @click="goToPage(currentPage + 1)" :disabled="currentPage >= lastPage">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -101,7 +111,7 @@
             <div class="admin-form-group">
               <label>Loại giảm giá</label>
               <select class="admin-select" v-model="currentVoucher.type">
-                <option value="percent">Phần trăm (%)</option>
+                <option value="percentage">Phần trăm (%)</option>
                 <option value="fixed">Số tiền cố định (VNĐ)</option>
               </select>
             </div>
@@ -157,67 +167,75 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import api from '@/api'
 
 const searchQuery = ref('')
 const filterStatus = ref('')
 const showModal = ref(false)
 const isEditing = ref(false)
+const isLoading = ref(false)
+const currentPage = ref(1)
+const lastPage = ref(1)
+const total = ref(0)
 
-const vouchers = ref([
-  {
-    id: 1,
-    code: 'WELCOME',
-    type: 'percent',
-    value: 10,
-    minOrder: 0,
-    maxDiscount: 50000,
-    startDate: '2026-01-01',
-    endDate: '2026-12-31',
-    limit: -1,
-    used: 156,
-    isActive: true
-  },
-  {
-    id: 2,
-    code: 'TET2026',
-    type: 'fixed',
-    value: 50000,
-    minOrder: 500000,
-    maxDiscount: null,
-    startDate: '2026-01-15',
-    endDate: '2026-02-15',
-    limit: 100,
-    used: 89,
-    isActive: true
-  },
-  {
-    id: 3,
-    code: 'FREESHIP',
-    type: 'fixed',
-    value: 30000,
-    minOrder: 200000,
-    maxDiscount: null,
-    startDate: '2026-01-01',
-    endDate: '2026-06-30',
-    limit: 500,
-    used: 120,
-    isActive: false
+const vouchers = ref([])
+
+// Map backend Promotion → frontend voucher
+const mapVoucher = (p) => ({
+  id: p.promo_id,
+  code: p.code,
+  type: p.promo_type,
+  value: parseFloat(p.discount_value),
+  minOrder: parseFloat(p.min_order_amount || 0),
+  limit: p.max_uses ?? -1,
+  used: p.used_count ?? 0,
+  startDate: p.start_date,
+  endDate: p.end_date,
+  isActive: p.is_active,
+})
+
+const fetchVouchers = async () => {
+  isLoading.value = true
+  try {
+    const params = { page: currentPage.value, per_page: 10 }
+    if (searchQuery.value) params.search = searchQuery.value
+    if (filterStatus.value === 'active') params.status = 'active'
+    else if (filterStatus.value === 'disabled') params.status = 'inactive'
+
+    const res = await api.get('/admin/promotions', { params })
+    vouchers.value = (res.data.data || []).map(mapVoucher)
+    total.value = res.data.total || 0
+    lastPage.value = res.data.last_page || 1
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi tải danh sách voucher')
+  } finally {
+    isLoading.value = false
   }
-])
+}
 
-const currentVoucher = ref({
+onMounted(fetchVouchers)
+
+let searchTimer = null
+watch(searchQuery, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { currentPage.value = 1; fetchVouchers() }, 400)
+})
+watch(filterStatus, () => { currentPage.value = 1; fetchVouchers() })
+
+const defaultVoucher = () => ({
   id: null,
   code: '',
-  type: 'percent',
-  value: 0,
+  type: 'percentage',
+  value: 10,
   minOrder: 0,
-  maxDiscount: 0,
-  startDate: '',
+  limit: null,
+  startDate: new Date().toISOString().split('T')[0],
   endDate: '',
-  limit: -1,
-  isActive: true
+  isActive: true,
 })
+
+const currentVoucher = ref(defaultVoucher())
 
 const getVoucherStatus = (v) => {
   if (!v.isActive) return 'disabled'
@@ -236,43 +254,30 @@ const getVoucherStatusText = (v) => {
 
 const getVoucherStatusClass = (v) => {
   const status = getVoucherStatus(v)
-  if (status === 'active') return 'active' // Green
-  if (status === 'expired') return 'cancelled' // Red
-  return 'inactive' // Gray/Orange
+  if (status === 'active') return 'active'
+  if (status === 'expired') return 'cancelled'
+  return 'inactive'
 }
 
 const formatCurrency = (value) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
+  if (!value) return '0₫'
+  return new Intl.NumberFormat('vi-VN').format(value) + '₫'
 }
 
 const formatDiscount = (v) => {
-  if (v.type === 'percent') return `${v.value}%`
+  if (v.type === 'percentage') return `${v.value}%`
   return formatCurrency(v.value)
 }
 
+// Chỉ lọc theo expired trên frontend (vì backend không lọc được expired)
 const filteredVouchers = computed(() => {
-  return vouchers.value.filter(v => {
-    const matchSearch = v.code.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const status = getVoucherStatus(v)
-    const matchStatus = filterStatus.value ? status === filterStatus.value : true
-    return matchSearch && matchStatus
-  })
+  if (filterStatus.value !== 'expired') return vouchers.value
+  return vouchers.value.filter(v => getVoucherStatus(v) === 'expired')
 })
 
 const openAddModal = () => {
   isEditing.value = false
-  currentVoucher.value = {
-    id: null,
-    code: '',
-    type: 'percent',
-    value: 10,
-    minOrder: 0,
-    maxDiscount: 0,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
-    limit: -1,
-    isActive: true
-  }
+  currentVoucher.value = defaultVoucher()
   showModal.value = true
 }
 
@@ -282,9 +287,13 @@ const editVoucher = (v) => {
   showModal.value = true
 }
 
-const deleteVoucher = (id) => {
-  if(confirm('Bạn có chắc muốn xóa mã voucher này?')) {
-    vouchers.value = vouchers.value.filter(v => v.id !== id)
+const deleteVoucher = async (id) => {
+  if (!confirm('Bạn có chắc muốn xóa mã voucher này?')) return
+  try {
+    await api.delete(`/admin/promotions/${id}`)
+    await fetchVouchers()
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi xóa voucher')
   }
 }
 
@@ -292,20 +301,53 @@ const closeModal = () => {
   showModal.value = false
 }
 
-const saveVoucher = () => {
-  if (isEditing.value) {
-    const index = vouchers.value.findIndex(v => v.id === currentVoucher.value.id)
-    if (index !== -1) {
-      vouchers.value[index] = { ...vouchers.value[index], ...currentVoucher.value }
-    }
-  } else {
-    vouchers.value.unshift({
-      id: vouchers.value.length + 10,
-      ...currentVoucher.value,
-      used: 0
-    })
+const saveVoucher = async () => {
+  if (!currentVoucher.value.code.trim()) {
+    alert('Vui lòng nhập mã voucher')
+    return
   }
-  closeModal()
+  if (!currentVoucher.value.endDate) {
+    alert('Vui lòng nhập ngày kết thúc')
+    return
+  }
+
+  const payload = {
+    code: currentVoucher.value.code.toUpperCase().trim(),
+    promo_type: currentVoucher.value.type,
+    discount_value: currentVoucher.value.value,
+    min_order_amount: currentVoucher.value.minOrder || 0,
+    max_uses: currentVoucher.value.limit || null,
+    start_date: currentVoucher.value.startDate,
+    end_date: currentVoucher.value.endDate,
+    is_active: currentVoucher.value.isActive,
+  }
+
+  try {
+    if (isEditing.value) {
+      await api.put(`/admin/promotions/${currentVoucher.value.id}`, payload)
+    } else {
+      await api.post('/admin/promotions', payload)
+    }
+    await fetchVouchers()
+    closeModal()
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi lưu voucher')
+  }
+}
+
+const toggleVoucherStatus = async (v) => {
+  try {
+    const res = await api.put(`/admin/promotions/${v.id}/toggle-status`)
+    v.isActive = res.data.is_active
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi thay đổi trạng thái')
+  }
+}
+
+const goToPage = (page) => {
+  if (page < 1 || page > lastPage.value) return
+  currentPage.value = page
+  fetchVouchers()
 }
 </script>
 

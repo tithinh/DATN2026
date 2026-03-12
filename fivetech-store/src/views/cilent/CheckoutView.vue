@@ -88,17 +88,53 @@
                 Thông tin khách hàng
               </h3>
               
-              <div class="customer-info-display">
-                <div class="info-row">
-                  <span class="info-label">Trạng thái:</span>
-                  <span class="info-value">Khách chưa đăng nhập</span>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Họ và tên <span class="required">*</span></label>
+                  <input 
+                    type="text" 
+                    class="form-input" 
+                    v-model="customerInfo.name"
+                    placeholder="Nguyễn Văn A"
+                    :class="{ 'error': errors.name }"
+                  />
+                  <span class="form-error" v-if="errors.name">{{ errors.name }}</span>
                 </div>
-                <div class="info-row">
-                  <span class="info-label">User ID (Guest):</span>
-                  <span class="info-value">1</span>
+
+                <div class="form-group">
+                  <label class="form-label">Số điện thoại <span class="required">*</span></label>
+                  <input 
+                    type="tel" 
+                    class="form-input" 
+                    v-model="customerInfo.phone"
+                    placeholder="0912 345 678"
+                    :class="{ 'error': errors.phone }"
+                  />
+                  <span class="form-error" v-if="errors.phone">{{ errors.phone }}</span>
                 </div>
-                <div class="info-note">
-                  Thông tin đơn hàng sẽ được lấy từ user_id = 1
+
+                <div class="form-group full-width">
+                  <label class="form-label">Email <span class="required">*</span></label>
+                  <input 
+                    type="email" 
+                    class="form-input" 
+                    v-model="customerInfo.email"
+                    placeholder="email@example.com"
+                    :class="{ 'error': errors.email }"
+                  />
+                  <span class="form-error" v-if="errors.email">{{ errors.email }}</span>
+                </div>
+
+                <div class="form-group full-width">
+                  <label class="form-label">Địa chỉ nhận hàng <span class="required">*</span></label>
+                  <input 
+                    type="text" 
+                    class="form-input" 
+                    v-model="customerInfo.address"
+                    placeholder="Số nhà, đường, phường/xã, quận/huyện, thành phố"
+                    :class="{ 'error': errors.address }"
+                  />
+                  <span class="form-error" v-if="errors.address">{{ errors.address }}</span>
                 </div>
               </div>
             </div>
@@ -251,21 +287,30 @@ const orderNote = ref('')
 
 // Computed: Kiểm tra form hợp lệ
 const formValid = computed(() => {
-  // Thông tin lấy từ bảng users, luôn hợp lệ
-  return true
+  // Nếu đã đăng nhập → luôn hợp lệ
+  if (authStore.isAuthenticated && authStore.user) {
+    return true
+  }
+  
+  // Nếu khách chưa đăng nhập → kiểm tra thông tin bắt buộc
+  const { name, phone, email, address } = customerInfo.value
+  return name?.trim() && phone?.trim() && email?.trim() && address?.trim()
 })
 
 // Tính giá đơn vị sản phẩm (hỗ trợ giá biến thể)
 const calculatedUnitPrice = (item) => {
   if (!item) return 0
-  if (item.variant?.price_extra && Number(item.variant.price_extra) > 0) {
-    return (item.price || 0) + Number(item.variant.price_extra)
-  }
-  return item.discount_price || item.price || item.variant?.product?.discount_price || 0
+  // Giá gốc = product discount_price hoặc base_price
+  const basePrice = Number(item.product?.discount_price || item.product?.base_price || 0)
+  // Cộng thêm price_extra của variant nếu có
+  const extra = (item.variant?.price_extra && Number(item.variant.price_extra) > 0) 
+    ? Number(item.variant.price_extra) 
+    : 0
+  return basePrice + extra
 }
 
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0)
+  return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
 
 // Load dữ liệu khi mount
@@ -292,6 +337,29 @@ onMounted(async () => {
 
 // Đặt hàng
 const placeOrder = async () => {
+  // Validation cho khách chưa đăng nhập
+  if (!authStore.isAuthenticated) {
+    errors.value = {}
+    
+    if (!customerInfo.value.name?.trim()) {
+      errors.value.name = 'Vui lòng nhập họ tên'
+    }
+    if (!customerInfo.value.phone?.trim()) {
+      errors.value.phone = 'Vui lòng nhập số điện thoại'
+    }
+    if (!customerInfo.value.email?.trim()) {
+      errors.value.email = 'Vui lòng nhập email'
+    }
+    if (!customerInfo.value.address?.trim()) {
+      errors.value.address = 'Vui lòng nhập địa chỉ'
+    }
+    
+    if (Object.keys(errors.value).length > 0) {
+      errorMessage.value = 'Vui lòng điền đầy đủ thông tin!'
+      return
+    }
+  }
+
   if (!formValid.value) {
     errorMessage.value = 'Không thể đặt hàng!'
     return
@@ -302,19 +370,26 @@ const placeOrder = async () => {
   errors.value = {}
 
   try {
+    // Chuẩn bị payload
     const payload = {
       items: cartStore.items.map(item => ({
         cart_item_id: item.id,
         quantity: item.quantity,
         variant_id: item.variant_id || item.variant?.variant_id || null
       })),
-      
       payment_method: selectedPayment.value,
       note: orderNote.value.trim(),
       coupon_code: cartStore.couponCode?.trim() || null
     }
 
-    console.log('Payload gửi đi:', payload)
+    // Nếu khách chưa đăng nhập → thêm thông tin khách hàng
+    if (!authStore.isAuthenticated) {
+      payload.customer_name = customerInfo.value.name.trim()
+      payload.phone = customerInfo.value.phone.trim()
+      payload.email = customerInfo.value.email.trim()
+      payload.shipping_address = customerInfo.value.address.trim()
+    }
+
 
     const res = await api.post('/orders', payload)
 
@@ -327,9 +402,6 @@ const placeOrder = async () => {
     // Clear giỏ hàng
     await cartStore.clearCart()
     } catch (err) {
-    console.log("STATUS:", err.response?.status)
-    console.log("FULL RESPONSE:", err.response?.data)
-    console.log("VALIDATION ERRORS:", err.response?.data?.errors)
 
     if (err.response?.status === 422) {
       errors.value = err.response.data.errors || {}

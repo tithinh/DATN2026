@@ -206,7 +206,7 @@ public function adminIndex(Request $request)
         $product->final_price = $product->discount_price ?? $product->base_price;
         $product->thumbnail = null;
         if ($product->variants->isNotEmpty()) {
-            $urls = json_decode($product->variants->first()->image_urls, true) ?? [];
+            $urls = $product->variants->first()->image_urls ?? [];
             $product->thumbnail = !empty($urls[0]) ? "/storage/{$urls[0]}" : null;
         }
         return $product;
@@ -344,6 +344,19 @@ public function update($id, Request $request)
     }
 
     return response()->json(['success' => true, 'product' => $product]);
+}
+
+public function destroy($product_id)
+{
+    $product = Product::findOrFail($product_id);
+
+    try {
+        $product->variants()->delete();
+        $product->delete();
+        return response()->json(['message' => 'Đã xóa sản phẩm thành công']);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Không thể xóa sản phẩm vì đang có trong đơn hàng'], 409);
+    }
 }
 
 

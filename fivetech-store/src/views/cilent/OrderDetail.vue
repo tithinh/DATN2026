@@ -49,30 +49,22 @@
           </div>
 
           <!-- Progress Steps -->
-          <div class="order-progress" v-if="order.status !== 'cancelled' && order.status !== 'completed'">
+          <div class="order-progress" v-if="order.status !== 'completed'">
             <div class="progress-track">
               <div class="progress-fill" :style="{ width: order.progress + '%' }"></div>
             </div>
             <div class="progress-steps">
-              <div class="step" :class="{ completed: order.progress >= 10 }">
+              <div class="step" :class="{ completed: order.progress >= 33 }">
                 <span class="step-dot"></span>
-                <span class="step-label">Đặt hàng</span>
+                <span class="step-label">Chờ xử lý</span>
               </div>
-              <div class="step" :class="{ completed: order.progress >= 30 }">
+              <div class="step" :class="{ completed: order.progress >= 66 }">
                 <span class="step-dot"></span>
-                <span class="step-label">Xác nhận</span>
+                <span class="step-label">Đang giao</span>
               </div>
-              <div class="step" :class="{ completed: order.progress >= 50 }">
+              <div class="step" :class="{ completed: order.progress >= 100 }">
                 <span class="step-dot"></span>
-                <span class="step-label">Xử lý</span>
-              </div>
-              <div class="step" :class="{ completed: order.progress >= 70 }">
-                <span class="step-dot"></span>
-                <span class="step-label">Vận chuyển</span>
-              </div>
-              <div class="step" :class="{ completed: order.progress >= 90 }">
-                <span class="step-dot"></span>
-                <span class="step-label">Thành công</span>
+                <span class="step-label">Hoàn thành</span>
               </div>
             </div>
           </div>
@@ -174,19 +166,19 @@
           <div class="order-summary">
             <div class="summary-row">
               <span class="label">Tạm tính:</span>
-              <span class="value">{{ formatPrice(order.total) }}</span>
+              <span class="value">{{ formatPrice(order.total_amount) }}</span>
             </div>
             <div class="summary-row">
               <span class="label">Phí vận chuyển:</span>
-              <span class="value">Miễn phí</span>
+              <span class="value">{{ order.shipping_fee > 0 ? formatPrice(order.shipping_fee) : 'Miễn phí' }}</span>
             </div>
-            <div class="summary-row discount" v-if="order.discount > 0">
+            <div class="summary-row discount" v-if="order.discount_amount > 0">
               <span class="label">Giảm giá:</span>
-              <span class="value">-{{ formatPrice(order.discount) }}</span>
+              <span class="value">-{{ formatPrice(order.discount_amount) }}</span>
             </div>
             <div class="summary-row total">
               <span class="label">Tổng cộng:</span>
-              <span class="value">{{ formatPrice(order.total) }}</span>
+              <span class="value">{{ formatPrice(order.final_amount) }}</span>
             </div>
           </div>
 
@@ -197,7 +189,7 @@
               Quay lại
             </router-link>
             <button 
-              v-if="order.status === 'pending' || order.status === 'confirmed'" 
+              v-if="order.status === 'pending'" 
               class="btn-cancel"
               @click="cancelOrder"
             >
@@ -232,7 +224,7 @@ const error = ref(null)
 const order = ref(null)
 
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0)
+  return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
 
 const formatDate = (dateString) => {
@@ -450,30 +442,14 @@ onMounted(() => {
   color: #d97706;
 }
 
-.order-status.confirmed {
+.order-status.shipping {
   background: #dbeafe;
   color: #2563eb;
 }
 
-.order-status.processing {
-  background: #e0e7ff;
-  color: #4f46e5;
-}
-
-.order-status.shipping {
-  background: #fce7f3;
-  color: #db2777;
-}
-
-.order-status.delivered,
 .order-status.completed {
   background: #dcfce7;
   color: #16a34a;
-}
-
-.order-status.cancelled {
-  background: #fee2e2;
-  color: #dc2626;
 }
 
 /* Progress Steps */

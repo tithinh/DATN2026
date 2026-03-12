@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-6 bg-white p-6 rounded-xl shadow">
     <img 
-                  :src="'http://localhost:8000/storage/' + product.variants?.[0]?.image_urls?.[0]"
+                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
                   :alt="product.name"
                   class="product-image"
                 />
@@ -42,6 +42,7 @@ import { onMounted } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { storageUrl } from '@/utils/image'
 
 const cartStore = useCartStore()
 const auth = useAuthStore()

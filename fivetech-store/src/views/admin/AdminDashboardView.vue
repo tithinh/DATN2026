@@ -21,37 +21,32 @@
       <!-- Revenue Chart -->
       <div class="admin-card">
         <div class="card-header">
-          <h3>📊 Doanh thu theo tháng</h3>
-          <select class="toolbar-filter" style="min-width: 100px;">
-            <option>2026</option>
-            <option>2025</option>
-          </select>
+          <h3>Doanh thu 7 ngày gần nhất</h3>
         </div>
-        <div class="chart-container">
+        <div class="chart-container" v-if="revenueByDay.length > 0">
           <div class="chart-bar-group">
-            <div class="chart-bar-wrapper" v-for="(item, idx) in revenueData" :key="idx">
+            <div class="chart-bar-wrapper" v-for="(item, idx) in revenueByDay" :key="idx">
               <div class="chart-bar revenue-bar" :style="{ height: item.height + '%' }" :title="item.value"></div>
               <span class="chart-label">{{ item.label }}</span>
             </div>
           </div>
+        </div>
+        <div v-else class="chart-container" style="text-align: center; padding: 40px; color: var(--admin-text-muted);">
+          Chưa có dữ liệu doanh thu
         </div>
       </div>
 
       <!-- Orders Chart -->
       <div class="admin-card">
         <div class="card-header">
-          <h3>📦 Đơn hàng theo ngày</h3>
-          <select class="toolbar-filter" style="min-width: 120px;">
-            <option>7 ngày qua</option>
-            <option>30 ngày qua</option>
-          </select>
+          <h3>Đơn hàng đang chờ xử lý</h3>
         </div>
-        <div class="chart-container">
-          <div class="chart-bar-group">
-            <div class="chart-bar-wrapper" v-for="(item, idx) in orderData" :key="idx">
-              <div class="chart-bar order-bar" :style="{ height: item.height + '%' }" :title="item.value + ' đơn'"></div>
-              <span class="chart-label">{{ item.label }}</span>
+        <div class="chart-container" style="display: flex; align-items: center; justify-content: center;">
+          <div style="text-align: center;">
+            <div style="font-size: 48px; font-weight: 700; color: var(--admin-warning);">
+              {{ stats.find(s => s.type === 'orders')?.value || 0 }}
             </div>
+            <div style="color: var(--admin-text-muted);">đơn hàng</div>
           </div>
         </div>
       </div>
@@ -97,73 +92,105 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import api from '@/api'
 
-const stats = ref([
-  {
-    type: 'products',
-    title: 'Tổng sản phẩm',
-    value: '1,284',
-    change: '+12.5%',
-    changeType: 'up',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>'
-  },
-  {
-    type: 'orders',
-    title: 'Tổng đơn hàng',
-    value: '3,462',
-    change: '+8.2%',
-    changeType: 'up',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>'
-  },
-  {
-    type: 'revenue',
-    title: 'Tổng doanh thu',
-    value: '2.45 tỷ',
-    change: '+15.3%',
-    changeType: 'up',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
-  },
-  {
-    type: 'users',
-    title: 'Tổng người dùng',
-    value: '8,521',
-    change: '-2.1%',
-    changeType: 'down',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+const stats = ref([])
+const recentOrders = ref([])
+const revenueByDay = ref([])
+const isLoading = ref(true)
+
+const formatCurrency = (value) => {
+  if (!value) return '0₫'
+  return new Intl.NumberFormat('vi-VN').format(value) + '₫'
+}
+
+const formatDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('vi-VN')
+}
+
+const getStatusClass = (status) => {
+  const classes = {
+    'pending': 'pending',
+    'shipping': 'shipping',
+    'completed': 'completed'
   }
-])
+  return classes[status] || 'pending'
+}
 
-const revenueData = ref([
-  { label: 'T1', height: 45, value: '180M' },
-  { label: 'T2', height: 62, value: '248M' },
-  { label: 'T3', height: 38, value: '152M' },
-  { label: 'T4', height: 75, value: '300M' },
-  { label: 'T5', height: 55, value: '220M' },
-  { label: 'T6', height: 82, value: '328M' },
-  { label: 'T7', height: 68, value: '272M' },
-  { label: 'T8', height: 90, value: '360M' },
-  { label: 'T9', height: 72, value: '288M' },
-  { label: 'T10', height: 58, value: '232M' },
-  { label: 'T11', height: 95, value: '380M' },
-  { label: 'T12', height: 100, value: '400M' }
-])
+const getStatusText = (status) => {
+  const texts = {
+    'pending': 'Chờ xử lý',
+    'shipping': 'Đang giao',
+    'completed': 'Hoàn thành'
+  }
+  return texts[status] || status
+}
 
-const orderData = ref([
-  { label: 'T2', height: 65, value: 42 },
-  { label: 'T3', height: 45, value: 28 },
-  { label: 'T4', height: 80, value: 56 },
-  { label: 'T5', height: 55, value: 35 },
-  { label: 'T6', height: 92, value: 68 },
-  { label: 'T7', height: 70, value: 48 },
-  { label: 'CN', height: 38, value: 22 }
-])
+onMounted(async () => {
+  try {
+    const res = await api.get('/admin/dashboard/stats')
+    const data = res.data
 
-const recentOrders = ref([
-  { id: 'DH2401', customer: 'Nguyễn Văn An', product: 'Ốp lưng iPhone 15 Pro', total: '450.000₫', status: 'Hoàn thành', statusClass: 'completed', date: '12/02/2026' },
-  { id: 'DH2402', customer: 'Trần Thị Bình', product: 'Tai nghe Bluetooth Sony', total: '1.200.000₫', status: 'Đang giao', statusClass: 'shipping', date: '12/02/2026' },
-  { id: 'DH2403', customer: 'Lê Hoàng Cường', product: 'Pin dự phòng 20000mAh', total: '680.000₫', status: 'Chờ xử lý', statusClass: 'pending', date: '11/02/2026' },
-  { id: 'DH2404', customer: 'Phạm Minh Đức', product: 'Cáp sạc Baseus 65W', total: '250.000₫', status: 'Hoàn thành', statusClass: 'completed', date: '11/02/2026' },
-  { id: 'DH2405', customer: 'Hoàng Thị Em', product: 'Kính cường lực Samsung', total: '150.000₫', status: 'Đã huỷ', statusClass: 'cancelled', date: '10/02/2026' },
-])
+    // Stats cards
+    stats.value = [
+      {
+        type: 'products',
+        title: 'Tổng sản phẩm',
+        value: data.products.total,
+        change: `${data.products.low_stock} sắp hết`,
+        changeType: data.products.low_stock > 0 ? 'down' : 'up',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>'
+      },
+      {
+        type: 'orders',
+        title: 'Tổng đơn hàng',
+        value: data.orders.total,
+        change: `${data.orders.pending} chờ xử lý`,
+        changeType: data.orders.pending > 0 ? 'down' : 'up',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>'
+      },
+      {
+        type: 'revenue',
+        title: 'Tổng doanh thu',
+        value: formatCurrency(data.revenue.total),
+        change: `${formatCurrency(data.revenue.this_month)} tháng này`,
+        changeType: 'up',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
+      },
+      {
+        type: 'users',
+        title: 'Tổng người dùng',
+        value: data.users.total,
+        change: `${data.users.new_this_month} tháng này`,
+        changeType: 'up',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+      }
+    ]
+
+    // Recent orders
+    recentOrders.value = data.orders.recent.map(order => ({
+      id: order.order_code || `DH${order.order_id}`,
+      customer: order.customer_name || order.user?.full_name || 'Khách vãng lai',
+      product: 'Xem chi tiết',
+      total: formatCurrency(order.final_amount),
+      status: getStatusText(order.status),
+      statusClass: getStatusClass(order.status),
+      date: formatDate(order.created_at)
+    }))
+
+    // Revenue by day (last 7 days)
+    revenueByDay.value = data.revenue_by_day.map(item => ({
+      label: new Date(item.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
+      height: Math.max(10, (item.revenue / Math.max(...data.revenue_by_day.map(d => d.revenue), 1)) * 100),
+      value: formatCurrency(item.revenue)
+    }))
+
+  } catch (error) {
+    console.error('Failed to load dashboard stats:', error)
+  } finally {
+    isLoading.value = false
+  }
+})
 </script>
