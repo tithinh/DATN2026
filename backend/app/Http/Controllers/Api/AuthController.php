@@ -41,7 +41,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Đăng ký thành công',
             'user'    => [
-                'id'        => $user->id,
+'user_id'   => $user->user_id,
                 'full_name' => $user->full_name,
                 'email'     => $user->email,
                 'phone'     => $user->phone,
@@ -81,7 +81,14 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Đăng nhập thành công',
-            'user'    => $user->only(['id', 'full_name', 'email', 'phone', 'address', 'is_active']),
+            'user'    => [
+                'user_id'   => $user->user_id,
+                'full_name' => $user->full_name,
+                'email'     => $user->email,
+                'phone'     => $user->phone,
+                'address'   => $user->address,
+                'is_active' => $user->is_active,
+            ],
             'token'   => $token,
         ]);
     }
@@ -107,7 +114,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => [
-                'id'         => $user->id,
+                'user_id'    => $user->user_id,
                 'full_name'  => $user->full_name,
                 'email'      => $user->email,
                 'phone'      => $user->phone,
@@ -141,7 +148,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Cập nhật thông tin thành công',
             'user'    => [
-                'id'         => $user->id,
+                'user_id'    => $user->user_id,
                 'full_name'  => $user->full_name,
                 'email'      => $user->email,
                 'phone'      => $user->phone,
@@ -261,7 +268,7 @@ class AuthController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
-            
+
             return $this->handleSocialLogin($googleUser, 'google');
         } catch (\Exception $e) {
             return response()->json([
@@ -275,7 +282,7 @@ class AuthController extends Controller
      */
     public function redirectToFacebook()
     {
-        return Socialite::driver('facebook')->redirect();
+        return Socialite::driver('facebook')->scopes(['email', 'public_profile'])->redirect();
     }
 
     /**
@@ -285,7 +292,7 @@ class AuthController extends Controller
     {
         try {
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
-            
+
             return $this->handleSocialLogin($facebookUser, 'facebook');
         } catch (\Exception $e) {
             return response()->json([
@@ -295,51 +302,58 @@ class AuthController extends Controller
     }
 
     /**
-     * Handle social login - find or create user
+     * Handle social login - find or create user, redirect popup về frontend
      */
     protected function handleSocialLogin($socialUser, $provider)
     {
-        // Find user by social ID or email
-        $user = User::where("{$provider}_id", $socialUser->getId())
-                   ->orWhere('email', $socialUser->getEmail())
-                   ->first();
+        try {
+            $user = User::where("{$provider}_id", $socialUser->getId())
+                       ->orWhere('email', $socialUser->getEmail())
+                       ->first();
 
-        if (!$user) {
-            // Create new user
-            $user = User::create([
-                'full_name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'User',
-                'email'     => $socialUser->getEmail(),
-                'password'  => Hash::make(Str::random(16)),
-                'avatar'    => $socialUser->getAvatar(),
-                'is_active' => true,
-                "{$provider}_id" => $socialUser->getId(),
-            ]);
-        } else {
-            // Update existing user with social ID if not set
-            if (empty($user->{$provider . '_id'})) {
-                $user->update([
+            if (!$user) {
+                $user = User::create([
+                    'full_name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'User',
+                    'email'     => $socialUser->getEmail(),
+                    'password'  => Hash::make(Str::random(16)),
+                    'avatar'    => $socialUser->getAvatar(),
+                    'is_active' => true,
                     "{$provider}_id" => $socialUser->getId(),
-                    'avatar' => $socialUser->getAvatar() ?? $user->avatar,
                 ]);
+            } else {
+                if (empty($user->{$provider . '_id'})) {
+                    $user->update([
+                        "{$provider}_id" => $socialUser->getId(),
+                        'avatar' => $socialUser->getAvatar() ?? $user->avatar,
+                    ]);
+                }
             }
+
+            if (!$user->is_active) {
+                $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+                return redirect($frontendUrl . '/social-callback?error=' . urlencode('Tài khoản đã bị khóa.'));
+            }
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            $userData = urlencode(json_encode([
+                'user_id'   => $user->getKey(),
+                'full_name' => $user->full_name,
+                'email'     => $user->email,
+                'phone'     => $user->phone,
+                'address'   => $user->address,
+                'avatar'    => $user->avatar,
+                'is_active' => $user->is_active,
+                'provider'  => $provider,
+            ]));
+
+            $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+            return redirect($frontendUrl . '/social-callback?token=' . $token . '&user=' . $userData);
+
+        } catch (\Exception $e) {
+            $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+            return redirect($frontendUrl . '/social-callback?error=' . urlencode('Đăng nhập thất bại: ' . $e->getMessage()));
         }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Đăng nhập ' . ucfirst($provider) . ' thành công',
-            'user'    => [
-                'id'         => $user->id,
-                'full_name'  => $user->full_name,
-                'email'      => $user->email,
-                'phone'      => $user->phone,
-                'address'    => $user->address,
-                'avatar'     => $user->avatar,
-                'is_active'  => $user->is_active,
-                'provider'   => $provider,
-            ],
-            'token'   => $token,
-        ]);
     }
 
     // ========================

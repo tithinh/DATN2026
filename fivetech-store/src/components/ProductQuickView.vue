@@ -14,21 +14,21 @@
           <div class="quickview-gallery">
             <div class="main-image">
               <img
-                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
+                  :src="getMainImage"
                   :alt="product.name"
                   class="product-image"
                 />
             </div>
 
-            <div class="thumbnail-list" v-if="images.length">
+            <div class="thumbnail-list" v-if="variantImages.length">
               <button 
-                v-for="(img, index) in images" 
+                v-for="(img, index) in variantImages" 
                 :key="index"
                 class="thumbnail"
                 :class="{ active: activeImage === img }"
                 @click="activeImage = img"
               >
-                <img :src="storageUrl(product.variants?.[0]?.image_urls?.[0])" :alt="`${product.name} ${+index + 1}`" />
+                <img :src="img" :alt="`${product.name} ${index + 1}`" />
               </button>
             </div>
           </div>
@@ -67,7 +67,18 @@
                   :class="{ active: selectedVariant?.variant_id === variant.variant_id }"
                   @click="selectVariant(variant)"
                 >
-                  <span class="color-dot" :style="{ backgroundColor: variant.color || '#000' }"></span>
+                    <img
+                      v-if="variant.image_urls && variant.image_urls.length"
+                      :src="getVariantImage(variant.image_urls[0])"
+                      class="variant-icon"
+                      :alt="variant.name || 'Variant'"
+                      @error="$event.target.style.display = 'none'"
+                    />
+                    <span
+                      v-else-if="variant.color"
+                      class="color-dot"
+                      :style="{ backgroundColor: variant.color }"
+                    ></span>
                   {{ variant.name || variant.color || variant.storage_size || 'Mặc định' }}
                 </button>
               </div>
@@ -132,8 +143,31 @@ const selectedVariant = ref<any>(null)
 const addingToCart = ref(false)
 
 // Computed
-const images = computed(() => {
-  return selectedVariant.value?.image_urls || props.product.variants?.[0]?.image_urls || [props.product.image || '']
+const variantImages = computed(() => {
+  let urls = selectedVariant.value?.image_urls || props.product.variants?.[0]?.image_urls || []
+  if (typeof urls === 'string') {
+    try {
+      urls = JSON.parse(urls) || []
+    } catch (e) {
+      urls = []
+    }
+  }
+  return urls.map(url => url.startsWith('http') ? url : storageUrl(url))
+})
+
+const getVariantImage = (imagePath) => {
+  if (!imagePath) return ''
+  return imagePath.startsWith('http') ? imagePath : storageUrl(imagePath)
+}
+
+const getMainImage = computed(() => {
+  if (activeImage.value) {
+    return activeImage.value.startsWith('http') ? activeImage.value : storageUrl(activeImage.value)
+  }
+  if (variantImages.value.length > 0) {
+    return variantImages.value[0]
+  }
+  return storageUrl(props.product.image || '')
 })
 
 const discount = computed(() => {
@@ -413,16 +447,44 @@ watch(() => props.product, (newProduct) => {
 
 .variant-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: 1px solid #e2e8f0;
+  gap: 6px;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
   border-radius: 12px;
-  background: white;
+  background: #fff;
   cursor: pointer;
-  font-size: 14px;
-  color: #475569;
   transition: all 0.2s;
+  min-width: 70px;
+  min-height: 90px;
+  width: 70px;
+  font-size: 12px;
+}
+
+.variant-btn:hover {
+  border-color: #ff6b35;
+  transform: translateY(-2px);
+}
+
+.color-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #f1f5f9;
+}
+
+.variant-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #f1f5f9;
+  transition: transform 0.2s;
+}
+
+.variant-btn:hover .variant-icon {
+  transform: scale(1.1);
 }
 
 .variant-btn.active {

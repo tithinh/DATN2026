@@ -4,10 +4,7 @@
       <h2>{{ pageTitle }}</h2>
     </div>
 
-    <div class="header-right">
-      <!-- Avatar -->
-      <div class="header-avatar" title="Admin">A</div>
-    </div>
+    
   </header>
 </template>
 
@@ -30,7 +27,7 @@ const pageTitles = {
   'AdminOrders': 'Quản lý đơn hàng',
   'AdminOrderDetail': 'Chi tiết đơn hàng',
   'AdminUsers': 'Quản lý người dùng',
-  'AdminComments': 'Quản lý bình luận'
+  'AdminComments': 'Quản lý đánh giá'
 }
 
 const pageTitle = computed(() => {

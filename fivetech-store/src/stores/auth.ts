@@ -47,6 +47,21 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    // Update profile fields like address
+    async updateProfile(data) {
+      try {
+        const res = await api.put('/user', data)
+        if (res.data?.user) {
+          this.user = res.data.user
+          localStorage.setItem('user', JSON.stringify(res.data.user))
+        }
+        return { success: true }
+      } catch (err) {
+        console.error('Update profile failed:', err)
+        return { success: false, error: err.response?.data?.message || 'Update failed' }
+      }
+    },
+
     // Lấy thông tin user mới nhất từ server (đồng bộ khi admin sửa)
     async fetchUser() {
       try {

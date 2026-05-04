@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $primaryKey = 'order_item_id';
 
@@ -20,6 +21,7 @@ class OrderItem extends Model
         'price_at_purchase' => 'decimal:2',
         'quantity'          => 'integer',
         'rating'            => 'integer',
+        'deleted_at' => 'datetime',
     ];
 
     // Accessor để dùng price thay cho price_at_purchase
@@ -38,7 +40,7 @@ class OrderItem extends Model
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
-    
+
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');

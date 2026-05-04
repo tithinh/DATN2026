@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $primaryKey = 'order_id';
     protected $fillable = [
@@ -26,7 +27,9 @@ class Order extends Model
         'customer_phone',
         'customer_email',
         'customer_address',
+        'payment_status',
     ];
+
 
     protected $casts = [
         'total_amount' => 'decimal:2',
@@ -34,7 +37,10 @@ class Order extends Model
         'final_amount' => 'decimal:2',
         'status' => 'string',
         'payment_method' => 'string',
+        'payment_status' => 'string',
+        'deleted_at' => 'datetime',
     ];
+
 
     // Relationships
     public function user()

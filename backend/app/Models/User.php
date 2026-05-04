@@ -9,7 +9,6 @@ use Laravel\Sanctum\HasApiTokens;
 use App\Models\Order;
 use App\Models\Wishlist;
 use App\Models\Comment;
-use App\Models\Cart;
 
 class User extends Authenticatable
 {
@@ -85,9 +84,12 @@ class User extends Authenticatable
         return $this->hasMany(Comment::class, 'user_id', 'user_id');
     }
 
-    public function cart()
+    /**
+     * Địa chỉ của user
+     */
+    public function addresses()
     {
-        return $this->hasOne(Cart::class, 'user_id', 'user_id');
+        return $this->hasMany(UserAddress::class, 'user_id', 'user_id');
     }
 
 }

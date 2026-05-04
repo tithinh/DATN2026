@@ -11,25 +11,26 @@
     <div class="product-image-wrapper">
       <!-- Hình ảnh -->
       <img 
-        :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
-        :alt="product.name"
+        :src="productImage"
+        :alt="product.name" 
         class="product-image"
+        @error="handleImageError"
       />
       <!-- Overlay actions -->
       <div class="product-actions">
         <!-- Yêu thích -->
-        <button 
-          class="action-btn wishlist-btn" 
-          :class="{ active: isWishlistedProp }" 
-          title="Yêu thích" 
+        <button
+          class="action-btn wishlist-btn"
+          :class="{ active: isWishlisted }"
+          title="Yêu thích"
           @click.stop="handleToggleWishlist"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" :fill="isWishlisted ? '#ef4444' : 'none'" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-icon">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
           </svg>
         </button>
-
-        <!-- Xem nhanh -->
+<!-- 
+        Xem nhanh
         <button 
           class="action-btn quickview-btn" 
           title="Xem nhanh" 
@@ -39,7 +40,7 @@
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
             <circle cx="12" cy="12" r="3"></circle>
           </svg>
-        </button>
+        </button> -->
       </div>
 
       <!-- Overlay link đến chi tiết -->
@@ -110,6 +111,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
 import { storageUrl } from '@/utils/image'
+
 
 const props = defineProps<{
   product: {
@@ -226,6 +228,11 @@ const reviewCount = computed(() => {
 const formatPrice = (price: number) => {
   if (!price) return '0đ'
   return new Intl.NumberFormat('vi-VN').format(Math.round(price)) + 'đ'
+}
+
+// Image error handler
+const handleImageError = (event) => {
+  event.target.src = '/images/default-product.jpg'
 }
 
 // Toggle wishlist
@@ -412,22 +419,15 @@ const addToCart = async () => {
 .wishlist-btn:hover {
   transform: scale(1.15);
   background: #fef2f2;
-  color: #ef4444;
   box-shadow: 0 8px 25px rgba(239, 68, 68, 0.25);
 }
 
-.wishlist-btn:hover svg {
-  fill: #ef4444;
-}
-
 .wishlist-btn.active {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+  background: #fef2f2;
 }
 
-.wishlist-btn.active svg {
-  fill: white;
+.wishlist-btn.active:hover {
+  background: #fee2e2;
 }
 
 /* Nút Xem nhanh */

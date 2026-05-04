@@ -73,7 +73,7 @@
             >
               <div class="timeline-dot">
                 <svg v-if="step.status === 'completed'" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                <component v-else :is="'span'" v-html="step.icon"></component>
+                <span v-else v-html="step.icon"></span>
               </div>
               <div class="timeline-label">{{ step.label }}</div>
               <div class="timeline-time" v-if="step.time">{{ step.time }}</div>
@@ -101,10 +101,6 @@
                   <span class="detail-label">Địa chỉ</span>
                   <span class="detail-value">{{ orderData.shipping?.address || customerInfo.address }}</span>
                 </div>
-                <!-- <div class="detail-row">
-                  <span class="detail-label">Vận chuyển</span>
-                  <span class="detail-value">{{ orderData.shipping_method || 'Giao hàng tiêu chuẩn' }}</span>
-                </div> -->
               </div>
             </div>
 
@@ -117,11 +113,11 @@
               <div class="detail-card-content">
                 <div class="detail-row">
                   <span class="detail-label">Phương thức</span>
-                  <span class="detail-value">{{ orderData.payment_method || 'Thanh toán khi nhận hàng (COD)' }}</span>
+                  <span class="detail-value">{{ paymentMethodLabel }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Trạng thái</span>
-                  <span class="detail-value success">{{ orderData.payment_status || 'Chờ thu tiền' }}</span>
+                  <span class="detail-value" :class="orderData.payment_status === 'paid' ? 'success' : 'warning'">{{ getPaymentStatusText(orderData.payment_status) }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Tạm tính</span>
@@ -129,11 +125,29 @@
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Phí vận chuyển</span>
-                  <span class="detail-value success">{{ orderData.shipping_fee ? formatPrice(orderData.shipping_fee) : 'Miễn phí' }}</span>
+                  <span class="detail-value">{{ orderData.shipping_fee ? formatPrice(orderData.shipping_fee) : 'Miễn phí' }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Tổng cộng</span>
-                  <span class="detail-value highlight">{{ formatPrice(orderData.total_amount || subtotal) }}</span>
+                  <span class="detail-value highlight">{{ formatPrice(orderData.final_amount || orderData.total_amount || subtotal) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- VietQR Payment Block ONLY if pending -->
+            <div class="detail-card vietqr-card" v-if="orderData.payment_method === 'vietqr' && orderData.payment_status === 'pending'">
+              <h4 class="detail-card-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8133a" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/></svg>
+                Quét mã QR để thanh toán (Pending)
+              </h4>
+              <div class="vietqr-body">
+                <img :src="qrUrl" alt="VietQR" class="vietqr-img" />
+                <div class="vietqr-info">
+                  <div class="vietqr-row"><span class="vietqr-label">Ngân hàng</span><span class="vietqr-value">Vietcombank</span></div>
+                  <div class="vietqr-row"><span class="vietqr-label">TK:</span><span class="vietqr-value vietqr-account">1021850576</span></div>
+                  <div class="vietqr-row"><span class="vietqr-label">Tên:</span><span class="vietqr-value">NGUYỄN TIẾN THỊNH</span></div>
+                  <div class="vietqr-row"><span class="vietqr-label">Số tiền:</span><span class="vietqr-value vietqr-amount">{{ formatPrice(orderData.final_amount) }}</span></div>
+                  <div class="vietqr-row"><span class="vietqr-label">Nội dung:</span><span class="vietqr-value vietqr-note">Thanh toan {{ orderData.order_code }}</span></div>
                 </div>
               </div>
             </div>
@@ -144,10 +158,10 @@
             <h4 class="order-products-title">Sản phẩm đã đặt ({{ orderItems.length }})</h4>
             <div class="order-product-list">
               <div class="order-product-item" v-for="item in orderItems" :key="item.id">
-                <img :src="item.image_url || item.image" :alt="item.name" class="order-product-img" />
+                <img :src="getOrderItemImage(item)" alt="Sản phẩm" class="order-item-image" />
                 <div class="order-product-info">
                   <div class="order-product-name">{{ item.name }}</div>
-                  <div class="order-product-variant">Phân loại: {{ item.variant || 'Mặc định' }}</div>
+                  <div class="order-product-variant">Phân loại: {{ item.variant?.color || 'Mặc định' }}</div>
                   <div class="order-product-qty">Số lượng: {{ item.quantity }}</div>
                 </div>
                 <div class="order-product-price">{{ formatPrice(item.price * item.quantity) }}</div>
@@ -163,7 +177,7 @@
           </div>
           <div class="email-text">
             <strong>Xác nhận đơn hàng đã được gửi qua email</strong>
-            Chi tiết đơn hàng và thông tin theo dõi đã được gửi đến email {{ orderData.customer?.email || 'email@example.com' }}
+            Chi tiết đơn hàng và thông tin theo dõi đã được gửi đến {{ orderData.customer?.email || 'email@example.com' }}
           </div>
         </div>
 
@@ -174,7 +188,7 @@
             Theo dõi đơn hàng
           </router-link>
           <router-link to="/products" class="btn-continue-shopping">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12 Asc 1.58h9.78a2 2 0 0 1 1.95-1.57l1.65-7.43H5.12"/></svg>
             Tiếp tục mua sắm
           </router-link>
         </div>
@@ -187,6 +201,25 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/api'
+import { storageUrl } from '@/utils/image'
+
+const getOrderItemImage = (item) => {
+  // Variant image first (parse JSON array)
+  let urls = item.variant?.image_urls || []
+  if (typeof urls === 'string') {
+    try {
+      urls = JSON.parse(urls)
+    } catch (err) {
+      urls = []
+    }
+  }
+  if (Array.isArray(urls) && urls.length > 0) {
+    return storageUrl(urls[0])
+  }
+
+  // Fallback chain
+  return storageUrl(item.product?.thumbnail || item.thumbnail || item.image || '/images/default-product.jpg')
+}
 
 const route = useRoute()
 const orderCode = computed(() => route.query.orderCode || route.params.orderCode || null)
@@ -237,6 +270,27 @@ const subtotal = computed(() => {
   return orderItems.value.reduce((total, item) => total + (item.price * item.quantity), 0)
 })
 
+const paymentMethodLabel = computed(() => {
+  const map = { cod: 'Thanh toán khi nhận hàng (COD)', vietqr: 'Chuyển khoản VietQR' }
+  return map[orderData.value?.payment_method] || orderData.value?.payment_method || 'COD'
+})
+
+const getPaymentStatusText = (status) => {
+  const map = {
+    'paid': 'Đã thanh toán',
+    'pending': 'Chờ thanh toán',
+    'failed': 'Thanh toán thất bại'
+  }
+  return map[status] || status || 'Chờ thu tiền'
+}
+
+const qrUrl = computed(() => {
+  if (!orderData.value) return ''
+  const amount = Math.round(orderData.value.final_amount || orderData.value.total_amount || 0)
+  const addInfo = encodeURIComponent('Thanh toan ' + orderData.value.order_code)
+  return `https://img.vietqr.io/image/VCB-1021850576-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=NGUYEN%20TIEN%20THINH`
+})
+
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
@@ -244,27 +298,29 @@ const formatPrice = (price) => {
 // Tracking Steps (dựa trên status từ API)
 const trackingSteps = computed(() => {
   const status = orderData.value?.status || 'pending'
+  const order = ['pending', 'processing', 'shipping', 'delivered', 'completed']
+  const currentIndex = order.indexOf(status)
 
-  return [
-    {
-      label: 'Chờ xử lý',
-      status: status === 'pending' || status === 'shipping' || status === 'completed' ? 'completed' : 'pending',
-      time: orderData.value?.created_at ? formatDate(orderData.value.created_at) : '',
-      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
-    },
-    {
-      label: 'Đang giao',
-      status: status === 'shipping' || status === 'completed' ? 'completed' : (status === 'pending' ? 'current' : 'pending'),
-      time: orderData.value?.shipping_at ? formatDate(orderData.value.shipping_at) : '',
-      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
-    },
-    {
-      label: 'Hoàn thành',
-      status: status === 'completed' ? 'completed' : (status === 'shipping' ? 'current' : 'pending'),
-      time: orderData.value?.completed_at ? formatDate(orderData.value.completed_at) : '',
-      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
-    }
+  const steps = [
+    { label: 'Chờ xử lý',   key: 'pending',   icon: '📋' },
+    { label: 'Đang xử lý', key: 'processing', icon: '⚙️' },
+    { label: 'Đang xử lý',  key: 'processing', icon: '⚙️' },
+    { label: 'Đang giao',   key: 'shipping',   icon: '🚚' },
+    { label: 'Hoàn thành',  key: 'completed',  icon: '🎉' },
   ]
+
+  if (status === 'cancelled') {
+    return steps.map(s => ({ ...s, status: 'pending', time: '' }))
+  }
+
+  return steps.map((s, i) => {
+    const stepIndex = order.indexOf(s.key === 'completed' ? 'completed' : s.key)
+    return {
+      ...s,
+      status: stepIndex < currentIndex ? 'completed' : stepIndex === currentIndex ? 'current' : 'pending',
+      time: stepIndex === 0 && orderData.value?.created_at ? formatDate(orderData.value.created_at) : '',
+    }
+  })
 })
 
 const progressWidth = computed(() => {
@@ -284,4 +340,76 @@ const formatDate = (date) => {
 
 <style scoped>
 @import '@/views/cilent/css/checkout.css';
-</style>
+
+.vietqr-card {
+  grid-column: 1 / -1;
+  border: 2px solid #e8133a22;
+}
+
+.vietqr-body {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.vietqr-img {
+  width: 200px;
+  height: 200px;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.vietqr-info {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vietqr-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.vietqr-label {
+  color: #888;
+  white-space: nowrap;
+}
+
+.vietqr-value {
+  font-weight: 500;
+  text-align: right;
+}
+
+.vietqr-account {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 1px;
+}
+
+.vietqr-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e8133a;
+}
+
+.vietqr-note {
+  font-weight: 700;
+  color: #e8133a;
+  font-size: 15px;
+}
+
+.vietqr-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+</style>  
+

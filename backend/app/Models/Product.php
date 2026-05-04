@@ -15,6 +15,7 @@ class Product extends Model
         'name', 'slug', 'description', 'short_desc',
         'base_price', 'discount_price', 'stock_total',
         'likes_count', 'category_id', 'is_visible', 'is_featured',
+        'thumbnail',
     ];
 
     protected $casts = [
@@ -50,4 +51,13 @@ class Product extends Model
     {
         return $this->discount_price ?? $this->base_price;
     }
+
+    /**
+     * Real total stock from variants sum (accurate warehouse total)
+     */
+    public function getRealStockTotalAttribute()
+    {
+        return $this->variants()->sum('stock');
+    }
 }
+

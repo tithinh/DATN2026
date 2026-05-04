@@ -19,6 +19,11 @@
     <div v-if="errorMessage" class="error-message">
       {{ errorMessage }}
     </div>
+    
+    <!-- Success Message -->
+    <div v-if="successMessage" class="success-message" style="background: #d1fae5; color: #065f46; padding: 12px 16px; border-radius: 8px; margin: 16px 0; text-align: center; border: 1px solid #a7f3d0;">
+      {{ successMessage }}
+    </div>
 
     <!-- Checkout Content -->
     <div class="checkout-content">
@@ -46,8 +51,8 @@
         <div class="checkout-layout">
           <!-- Left Column: Forms -->
           <div class="checkout-form">
-            <!-- Customer Info - Thông tin tự động lấy từ user đã đăng nhập -->
-            <div class="checkout-section" v-if="authStore.isAuthenticated && authStore.user">
+            <!-- Thông tin người nhận -->
+            <div class="checkout-section">
               <h3 class="checkout-section-title">
                 <span class="section-icon info-icon">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -55,88 +60,58 @@
                 Thông tin người nhận
               </h3>
 
-              <div class="customer-info-display">
-                <div class="info-row">
-                  <span class="info-label">User ID:</span>
-                  <span class="info-value">{{ authStore.user.id }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Họ và tên:</span>
-                  <span class="info-value">{{ authStore.user.full_name }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Số điện thoại:</span>
-                  <span class="info-value">{{ authStore.user.phone || 'Chưa cập nhật' }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Địa chỉ:</span>
-                  <span class="info-value">{{ authStore.user.address || 'Chưa cập nhật' }}</span>
-                </div>
-              </div>
-              
-              <router-link to="/profile/edit" class="edit-profile-link">
-                Cập nhật thông tin tại đây
-              </router-link>
-            </div>
-
-            <!-- Thông tin cho khách chưa đăng nhập -->
-            <div class="checkout-section" v-else>
-              <h3 class="checkout-section-title">
-                <span class="section-icon info-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </span>
-                Thông tin khách hàng
-              </h3>
-              
               <div class="form-grid">
-                <div class="form-group">
+                <div class="form-group" v-show="true">
                   <label class="form-label">Họ và tên <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
+                  <input
+                    type="text"
+                    class="form-input"
                     v-model="customerInfo.name"
-                    placeholder="Nguyễn Văn A"
+                    placeholder="Nhập họ và tên của bạn"
                     :class="{ 'error': errors.name }"
+                    :disabled="authStore.isAuthenticated && !!authStore.user?.full_name"
                   />
                   <span class="form-error" v-if="errors.name">{{ errors.name }}</span>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" v-show="true">
                   <label class="form-label">Số điện thoại <span class="required">*</span></label>
-                  <input 
-                    type="tel" 
-                    class="form-input" 
+                  <input
+                    type="tel"
+                    class="form-input"
                     v-model="customerInfo.phone"
-                    placeholder="0912 345 678"
+                    placeholder="Nhập số điện thoại (10 số)"
                     :class="{ 'error': errors.phone }"
                   />
                   <span class="form-error" v-if="errors.phone">{{ errors.phone }}</span>
                 </div>
 
-                <div class="form-group full-width">
-                  <label class="form-label">Email <span class="required">*</span></label>
-                  <input 
-                    type="email" 
-                    class="form-input" 
+                <div class="form-group full-width" v-show="true">
+                  <label class="form-label">Email</label>
+                  <input
+                    type="email"
+                    class="form-input"
                     v-model="customerInfo.email"
                     placeholder="email@example.com"
-                    :class="{ 'error': errors.email }"
+                    :disabled="authStore.isAuthenticated && !!authStore.user?.email"
                   />
-                  <span class="form-error" v-if="errors.email">{{ errors.email }}</span>
                 </div>
 
-                <div class="form-group full-width">
+                <div class="form-group full-width" v-show="true">
                   <label class="form-label">Địa chỉ nhận hàng <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
+                  <input
+                    type="text"
+                    class="form-input"
                     v-model="customerInfo.address"
-                    placeholder="Số nhà, đường, phường/xã, quận/huyện, thành phố"
+                    :placeholder="authStore.isAuthenticated && authStore.user?.address ? 'Địa chỉ hiện tại: ' + authStore.user.address : 'Số nhà, đường, phường/xã, quận/huyện, thành phố'"
                     :class="{ 'error': errors.address }"
                   />
                   <span class="form-error" v-if="errors.address">{{ errors.address }}</span>
+                  
                 </div>
               </div>
+
+
             </div>
 
             <!-- Payment Method -->
@@ -149,8 +124,8 @@
               </h3>
 
               <div class="payment-methods">
-                <label 
-                  class="payment-option" 
+                <label
+                  class="payment-option"
                   :class="{ selected: selectedPayment === 'cod' }"
                   @click="selectedPayment = 'cod'"
                 >
@@ -161,11 +136,25 @@
                   </span>
                   <div class="payment-details">
                     <div class="payment-name">Thanh toán khi nhận hàng (COD)</div>
-                    <div class="payment-desc">Trả tiền mặt khi nhận được hàng</div>
+                    <div class="payment-desc">Trả tiền mặt khi nhận hàng</div>
                   </div>
                 </label>
 
-                <!-- Có thể thêm các phương thức khác nếu backend hỗ trợ -->
+                <label
+                  class="payment-option"
+                  :class="{ selected: selectedPayment === 'vietqr' }"
+                  @click="selectedPayment = 'vietqr'"
+                >
+                  <input type="radio" name="payment" value="vietqr" v-model="selectedPayment" />
+                  <span class="payment-radio"></span>
+                  <span class="payment-icon vietqr">
+                    <span class="payment-badge vietqr-badge">VietQR</span>
+                  </span>
+                  <div class="payment-details">
+                    <div class="payment-name">Chuyển khoản VietQR</div>
+                    <div class="payment-desc">Vietcombank · 1021850576 · Nguyễn Tiến Thịnh</div>
+                  </div>
+                </label>
               </div>
             </div>
 
@@ -197,10 +186,12 @@
             <div class="order-items">
               <div class="order-item" v-for="item in cartStore.items" :key="item.id">
                 <img 
-                  :src="item.image || item.variant?.image_urls?.[0] || `https://via.placeholder.com/80?text=${encodeURIComponent(item.name || 'SP')}`" 
-                  :alt="item.name" 
-                  class="order-item-image" 
-                />
+      :src="getOrderItemImage(item)"
+      :alt="item.product?.name || item.name" 
+      class="order-item-image" 
+      @error="e => e.target.src = '/images/default-product.jpg'"
+    />
+
                 <div class="order-item-info">
                   <div class="order-item-name">{{ item.name }}</div>
                   <div class="order-item-variant">Phân loại: {{ item.variant?.name || 'Mặc định' }}</div>
@@ -217,7 +208,7 @@
                 <span class="calc-value">{{ formatPrice(cartStore.subtotal) }}</span>
               </div>
               <div class="calc-row discount" v-if="cartStore.hasDiscount">
-                <span>Giảm giá</span>
+                <span>Giảm giá <span class="coupon-tag">{{ cartStore.couponCode }}</span></span>
                 <span class="calc-value text-red-600">-{{ formatPrice(cartStore.discount) }}</span>
               </div>
               <div class="calc-row shipping">
@@ -264,6 +255,7 @@ import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
+import { storageUrl } from '@/utils/image'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -284,18 +276,18 @@ const customerInfo = ref({
 // Shipping & Payment
 const selectedPayment = ref('cod')
 const orderNote = ref('')
+const successMessage = ref('')
 
 // Computed: Kiểm tra form hợp lệ
 const formValid = computed(() => {
-  // Nếu đã đăng nhập → luôn hợp lệ
-  if (authStore.isAuthenticated && authStore.user) {
-    return true
-  }
-  
-  // Nếu khách chưa đăng nhập → kiểm tra thông tin bắt buộc
-  const { name, phone, email, address } = customerInfo.value
-  return name?.trim() && phone?.trim() && email?.trim() && address?.trim()
+  const { name, phone, address } = customerInfo.value
+  const nameValid = !!name?.trim()
+  const phoneValid = !!phone?.trim() && phone.trim().length === 10
+  const addressValid = !!address?.trim()
+  console.log('Form validation:', {nameValid, phoneValid, addressValid, name: name?.trim(), phone: phone?.trim().length, addressLength: address?.trim().length})
+  return nameValid && phoneValid && addressValid
 })
+
 
 // Tính giá đơn vị sản phẩm (hỗ trợ giá biến thể)
 const calculatedUnitPrice = (item) => {
@@ -303,15 +295,34 @@ const calculatedUnitPrice = (item) => {
   // Giá gốc = product discount_price hoặc base_price
   const basePrice = Number(item.product?.discount_price || item.product?.base_price || 0)
   // Cộng thêm price_extra của variant nếu có
-  const extra = (item.variant?.price_extra && Number(item.variant.price_extra) > 0) 
-    ? Number(item.variant.price_extra) 
-    : 0
+  const extra = item.variant?.price_extra ? Number(item.variant.price_extra) : 0
   return basePrice + extra
+}
+
+const getOrderItemImage = (item) => {
+  if (!item) return '/images/default-product.jpg'
+
+  // Variant image first
+  let urls = item.variant?.image_urls || []
+  if (typeof urls === 'string') {
+    try {
+      urls = JSON.parse(urls)
+    } catch {
+      urls = []
+    }
+  }
+  if (Array.isArray(urls) && urls.length > 0) {
+    return storageUrl(urls[0])
+  }
+
+  // Fallback
+  return storageUrl(item.product?.thumbnail || item.image || '/images/default-product.jpg')
 }
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
 }
+
 
 // Load dữ liệu khi mount
 onMounted(async () => {
@@ -321,7 +332,7 @@ onMounted(async () => {
     return
   }
 
-  // Nếu đã đăng nhập → điền sẵn thông tin
+  // Nếu đã đăng nhập → điền sẵn thông tin + load địa chỉ
   if (authStore.isAuthenticated && authStore.user) {
     customerInfo.value = {
       name: authStore.user.full_name || '',
@@ -329,48 +340,55 @@ onMounted(async () => {
       email: authStore.user.email || '',
       address: authStore.user.address || ''
     }
-  }
+
+    // Skip addresses - use user info only
+  } 
+
 
   // Tải giỏ hàng (đã hỗ trợ guest)
   await cartStore.fetchCart()
 })
 
 // Đặt hàng
-const placeOrder = async () => {
-  // Validation cho khách chưa đăng nhập
-  if (!authStore.isAuthenticated) {
-    errors.value = {}
-    
-    if (!customerInfo.value.name?.trim()) {
-      errors.value.name = 'Vui lòng nhập họ tên'
-    }
-    if (!customerInfo.value.phone?.trim()) {
-      errors.value.phone = 'Vui lòng nhập số điện thoại'
-    }
-    if (!customerInfo.value.email?.trim()) {
-      errors.value.email = 'Vui lòng nhập email'
-    }
-    if (!customerInfo.value.address?.trim()) {
-      errors.value.address = 'Vui lòng nhập địa chỉ'
-    }
-    
-    if (Object.keys(errors.value).length > 0) {
-      errorMessage.value = 'Vui lòng điền đầy đủ thông tin!'
-      return
-    }
-  }
+    const placeOrder = async () => {
+      console.log('🔥 PLACE ORDER CLICKED!')
+      console.log('cartStore.items:', cartStore.items)
+      console.log('formValid:', formValid.value)
+      console.log('loading:', loading.value)
+      console.log('cartStore.isEmpty:', cartStore.isEmpty)
+      
+      // Force refresh cart before checkout (ensure latest IDs post-merge)
+      await cartStore.fetchCart()
+      
+      console.log('cart after fetch:', cartStore.items)
+      
+      errors.value = {}
+      errorMessage.value = ''
 
-  if (!formValid.value) {
-    errorMessage.value = 'Không thể đặt hàng!'
+  // Validate các trường bắt buộc
+  if (!customerInfo.value.name?.trim()) {
+    errors.value.name = 'Vui lòng nhập họ tên'
+    document.querySelector('.form-group input[placeholder*="tên"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    document.querySelector('.form-group input[placeholder*="tên"]')?.focus()
+    return
+  }
+  if (!customerInfo.value.phone?.trim() || customerInfo.value.phone.trim().length !== 10) {
+    errors.value.phone = 'Số điện thoại phải đúng 10 ký tự'
+    document.querySelector('.form-group input[placeholder*="điện thoại"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    document.querySelector('.form-group input[placeholder*="điện thoại"]')?.focus()
+    return
+  }
+  if (!customerInfo.value.address?.trim()) {
+    const addrInput = document.querySelector('.form-group input[placeholder*="Số nhà, đường"]')
+    addrInput?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    addrInput?.focus()
+    errorMessage.value = '❌ Không thể đặt hàng khi địa chỉ trống!'
     return
   }
 
   loading.value = true
-  errorMessage.value = ''
-  errors.value = {}
 
   try {
-    // Chuẩn bị payload
     const payload = {
       items: cartStore.items.map(item => ({
         cart_item_id: item.id,
@@ -378,36 +396,32 @@ const placeOrder = async () => {
         variant_id: item.variant_id || item.variant?.variant_id || null
       })),
       payment_method: selectedPayment.value,
+      shipping_address: customerInfo.value.address.trim(),
       note: orderNote.value.trim(),
-      coupon_code: cartStore.couponCode?.trim() || null
+      coupon_code: cartStore.couponCode?.trim() || null,
+      customer_name: customerInfo.value.name.trim(),
+      phone: customerInfo.value.phone.trim(),
+      email: customerInfo.value.email.trim(),
     }
-
-    // Nếu khách chưa đăng nhập → thêm thông tin khách hàng
-    if (!authStore.isAuthenticated) {
-      payload.customer_name = customerInfo.value.name.trim()
-      payload.phone = customerInfo.value.phone.trim()
-      payload.email = customerInfo.value.email.trim()
-      payload.shipping_address = customerInfo.value.address.trim()
-    }
-
 
     const res = await api.post('/orders', payload)
 
-    // Thành công - chuyển sang trang hoàn tất
+    // Conditional redirect based on payment_status
+    const targetRoute = res.data.payment_status === 'paid' ? 'OrderSuccess' : 'PaymentPending'
     router.push({
-      name: 'OrderSuccess',
+      name: targetRoute,
       query: { orderCode: res.data.order_code }
     })
 
-    // Clear giỏ hàng
     await cartStore.clearCart()
-    } catch (err) {
 
+  } catch (err) {
     if (err.response?.status === 422) {
       errors.value = err.response.data.errors || {}
       errorMessage.value =
-        Object.values(errors.value)[0]?.[0] ||
-        'Dữ liệu không hợp lệ.'
+        Object.values(errors.value)[0]?.[0] || 'Dữ liệu không hợp lệ.'
+    } else {
+      errorMessage.value = err.response?.data?.message || 'Đặt hàng thất bại, vui lòng thử lại!'
     }
   } finally {
     loading.value = false
@@ -417,6 +431,54 @@ const placeOrder = async () => {
 
 <style scoped>
 @import '@/views/cilent/css/checkout.css';
+
+/* Saved addresses */
+.saved-addresses {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.saved-address-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.saved-address-option:hover { border-color: #f97316; background: #fff7ed; }
+.saved-address-option.selected { border-color: #f97316; background: #fff7ed; }
+
+.saved-address-option input[type="radio"] { display: none; }
+
+.addr-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: border-color 0.2s;
+}
+.saved-address-option.selected .addr-radio {
+  border-color: #f97316;
+  background: radial-gradient(circle, #f97316 40%, transparent 45%);
+}
+
+.addr-info { flex: 1; }
+.addr-name { font-weight: 600; font-size: 14px; color: #1e293b; margin-right: 8px; }
+.addr-phone { font-size: 13px; color: #64748b; margin-right: 8px; }
+.addr-default {
+  font-size: 11px; font-weight: 600; color: #f97316;
+  background: #fff7ed; border: 1px solid #fed7aa;
+  padding: 1px 7px; border-radius: 20px;
+}
+.addr-text { font-size: 13px; color: #475569; margin: 4px 0 0; }
 
 /* Thêm style lỗi */
 .input-error {
@@ -437,5 +499,60 @@ const placeOrder = async () => {
   border-radius: 8px;
   margin: 16px 0;
   text-align: center;
+}
+
+.payment-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.vietqr-badge {
+  background: #e8133a;
+  color: #fff;
+}
+
+.missing-info-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #c2410c;
+  font-weight: 500;
+}
+
+.form-input:disabled {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+}
+
+.form-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.coupon-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 </style>

@@ -5,33 +5,16 @@
       <div class="auth-branding">
         <div class="brand-content">
           <div class="brand-logo">
-            <span class="logo-icon">T5</span>
-            <span class="logo-text">Techfive</span>
+            <span class="logo-icon">
+              <img src="/images/logo-t5.png" alt="T5 Logo" />
+            </span>
+            <span class="logo-text">TF</span>
           </div>
           <h1 class="brand-title">Chào mừng trở lại!</h1>
           <p class="brand-description">
-            Đăng nhập để tiếp tục mua sắm và nhận nhiều ưu đãi hấp dẫn dành riêng cho thành viên.
+            Đăng nhập để tiếp tục mua sắm ngay.
           </p>
-          <div class="brand-features">
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2" ry="2"/><polyline points="16 8 20 8 23 11 23 16 16 16"/><path d="M16 16v-8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-              </span>
-              <span style="color: #f97316">Freeship đơn từ 300K</span>
-            </div>
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-              </span>
-              <span style="color: #22c55e">Tích điểm đổi quà</span>
-            </div>
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>
-              </span>
-              <span style="color: #f43f5e">Ưu đãi sinh nhật</span>
-            </div>
-          </div>
+
         </div>
       </div>
 
@@ -130,13 +113,7 @@
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              <span>Google</span>
-            </button>
-            <button class="social-btn facebook-btn" @click="handleFacebookLogin" :disabled="loading">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-              <span>Facebook</span>
+              <span>Đăng nhập với Google</span>
             </button>
           </div>
 
@@ -151,9 +128,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import api, { redirectToGoogle, redirectToFacebook, handleSocialCallback } from '@/api'
+import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
 const email = ref('')
@@ -164,35 +141,6 @@ const loading = ref(false)
 const errorMessage = ref('')
 
 const router = useRouter()
-
-// Handle social login callback
-onMounted(async () => {
-  const urlParams = new URLSearchParams(window.location.search)
-  if (urlParams.has('token') || urlParams.has('message')) {
-    loading.value = true
-    try {
-      const success = await handleSocialCallback()
-      if (success) {
-        // Update auth store after social login
-        const auth = useAuthStore()
-        const userData = localStorage.getItem('user')
-        auth.login(userData ? JSON.parse(userData) : {})
-        
-        alert('Đăng nhập thành công!')
-        router.push('/')
-      } else {
-        const message = urlParams.get('message')
-        if (message) {
-          errorMessage.value = decodeURIComponent(message)
-        }
-      }
-    } catch (err) {
-      errorMessage.value = 'Đăng nhập thất bại. Vui lòng thử lại.'
-    } finally {
-      loading.value = false
-    }
-  }
-})
 
 const handleLogin = async () => {
   errorMessage.value = ''
@@ -243,49 +191,45 @@ const handleLogin = async () => {
 }
 
 const handleGoogleLogin = () => {
-  // Open Google login in popup
-  const width = 500
-  const height = 600
-  const left = (screen.width - width) / 2
-  const top = (screen.height - height) / 2
-  
-  const popup = window.open(
-    `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth/google`,
-    'google-login',
-    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
-  )
-  
-  // Listen for message from popup
-  const checkPopup = setInterval(() => {
-    if (popup.closed) {
-      clearInterval(checkPopup)
-      // Refresh and check if user is logged in
-      window.location.reload()
-    }
-  }, 500)
+  openSocialPopup(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/auth/google`, 'google-login')
 }
 
-const handleFacebookLogin = () => {
-  // Open Facebook login in popup
+const openSocialPopup = (url, name) => {
   const width = 500
   const height = 600
   const left = (screen.width - width) / 2
   const top = (screen.height - height) / 2
-  
-  const popup = window.open(
-    `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth/facebook`,
-    'facebook-login',
-    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
-  )
-  
-  // Listen for message from popup
-  const checkPopup = setInterval(() => {
-    if (popup.closed) {
-      clearInterval(checkPopup)
-      // Refresh and check if user is logged in
-      window.location.reload()
+
+  window.open(url, name, `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`)
+
+  // Lắng nghe postMessage từ popup (SocialCallback.vue)
+  const handleMessage = async (event) => {
+    if (event.origin !== window.location.origin) return
+
+    const { type, token, user, error } = event.data || {}
+
+    if (type === 'SOCIAL_LOGIN_SUCCESS' && token) {
+      window.removeEventListener('message', handleMessage)
+      loading.value = true
+      try {
+        localStorage.setItem('token', token)
+        if (user) localStorage.setItem('user', JSON.stringify(user))
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        const auth = useAuthStore()
+        auth.login(user || {})
+        router.push('/')
+      } finally {
+        loading.value = false
+      }
     }
-  }, 500)
+
+    if (type === 'SOCIAL_LOGIN_ERROR') {
+      window.removeEventListener('message', handleMessage)
+      errorMessage.value = error || 'Đăng nhập thất bại. Vui lòng thử lại.'
+    }
+  }
+
+  window.addEventListener('message', handleMessage)
 }
 </script>
 
@@ -376,19 +320,15 @@ const handleFacebookLogin = () => {
   margin-bottom: 40px;
 }
 
-.logo-icon {
-  width: 56px;
-  height: 56px;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 800;
-  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+.logo-icon img{
+  width: 100px;
+  height: 80px;
+  background-image: url('/images/logo-t5.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
+
 
 .logo-text {
   font-size: 32px;
@@ -615,8 +555,8 @@ const handleFacebookLogin = () => {
 }
 
 .social-login {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
@@ -629,16 +569,18 @@ const handleFacebookLogin = () => {
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   background: #ffffff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
   transition: all 0.3s ease;
+  width: 100%;
 }
 
 .social-btn:hover:not(:disabled) {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: #4285F4;
+  background: #f0f5ff;
+  color: #1a56db;
 }
 
 .social-btn:disabled {

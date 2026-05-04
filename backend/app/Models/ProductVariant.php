@@ -34,11 +34,11 @@ class ProductVariant extends Model
         'product_id',
         'color',
         'storage_size',
-        'name',           // tên variant (ví dụ: "Đen 256GB", "Xanh 512GB")
-        'price_extra',    // giá cộng thêm so với giá gốc của sản phẩm
+        'name',
+        'price_extra',    // giá cộng thêm (legacy)
         'sku',
         'stock',
-        'image_urls',     // mảng URL ảnh variant (nếu khác ảnh chính)
+        'image_urls',
     ];
 
     /**
@@ -47,8 +47,9 @@ class ProductVariant extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'image_urls' => 'array', // tự động parse JSON thành array khi lấy từ DB
+        'image_urls' => 'array',
         'price_extra' => 'float',
+        'price' => 'float',
         'stock' => 'integer',
     ];
 
@@ -77,11 +78,14 @@ class ProductVariant extends Model
     }
 
     /**
-     * Accessor: Giá cuối cùng của variant (giá gốc sản phẩm + price_extra)
-     * Dùng discount_price nếu có, không thì base_price
+     * Accessor: Giá cuối cùng của variant
+     * Ưu tiên: price (trực tiếp) → base_price + price_extra (legacy)
      */
     public function getFinalPriceAttribute(): float
     {
+        if ($this->price !== null) {
+            return (float) $this->price;
+        }
         $basePrice = $this->product->discount_price ?? $this->product->base_price ?? 0;
         return (float) $basePrice + ($this->price_extra ?? 0);
     }
@@ -100,5 +104,27 @@ class ProductVariant extends Model
     public function scopeByColor($query, string $color)
     {
         return $query->where('color', $color);
+    }
+
+    /**
+     * Auto-update parent product stock_total when this variant stock changes
+     */
+    protected static function booted()
+    {
+        static::saved(function (self $variant) {
+            $product = $variant->product;
+            if ($product) {
+                $product->stock_total = $product->real_stock_total;
+                $product->saveQuietly();
+            }
+        });
+
+        static::deleting(function (self $variant) {
+            $product = $variant->product;
+            if ($product) {
+                $product->stock_total = $product->real_stock_total;
+                $product->saveQuietly();
+            }
+        });
     }
 }

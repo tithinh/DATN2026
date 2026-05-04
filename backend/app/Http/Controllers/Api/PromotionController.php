@@ -13,7 +13,73 @@ class PromotionController extends Controller
         return Promotion::where('is_active', 1)
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
+            ->where(function ($q) {
+                $q->whereNull('max_uses')
+                  ->orWhereColumn('used_count', '<', 'max_uses');
+            })
             ->get();
+    }
+
+    public function available(Request $request)
+    {
+        $subtotal = $request->input('subtotal', 0);
+
+        $query = Promotion::where('is_active', 1)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now());
+
+        // Exclude exhausted promos
+        $query->where(function ($q) {
+            $q->whereNull('max_uses')
+              ->orWhereColumn('used_count', '<', 'max_uses');
+        });
+
+        // Exclude promos already used by authenticated user
+        $user = \Illuminate\Support\Facades\Auth::guard('sanctum')->user();
+        if ($user) {
+            $usedPromoIds = \App\Models\Order::where('user_id', $user->user_id)
+                ->whereNotNull('promo_id')
+                ->pluck('promo_id');
+            $query->whereNotIn('promo_id', $usedPromoIds);
+        }
+
+        $promotions = $query->get();
+
+        // Attach calculated discount for each promo based on subtotal
+        $promotions = $promotions->map(function ($promo) use ($subtotal) {
+            $discountAmount = 0;
+            $isValid = true;
+            $reason = null;
+
+            if ($subtotal > 0 && $promo->min_order_amount > 0 && $subtotal < $promo->min_order_amount) {
+                $isValid = false;
+                $reason = 'Đơn hàng tối thiểu ' . number_format($promo->min_order_amount) . '₫';
+            }
+
+            if ($isValid && $subtotal > 0) {
+                if ($promo->promo_type === 'percentage') {
+                    $discountAmount = $subtotal * ($promo->discount_value / 100);
+                } elseif ($promo->promo_type === 'fixed') {
+                    $discountAmount = $promo->discount_value;
+                }
+                $discountAmount = min($discountAmount, $subtotal);
+            }
+
+            return [
+                'promo_id' => $promo->promo_id,
+                'code' => $promo->code,
+                'promo_type' => $promo->promo_type,
+                'discount_value' => $promo->discount_value,
+                'discount_amount' => round($discountAmount),
+                'min_order_amount' => $promo->min_order_amount,
+                'is_valid' => $isValid,
+                'reason' => $reason,
+            ];
+        });
+
+        return response()->json([
+            'data' => $promotions->values(),
+        ]);
     }
 
     public function checkCode(Request $request)
@@ -36,6 +102,17 @@ class PromotionController extends Controller
         // Kiểm tra số lần sử dụng
         if ($promo->max_uses && $promo->used_count >= $promo->max_uses) {
             return response()->json(['error' => 'Mã giảm giá đã hết lượt sử dụng'], 422);
+        }
+
+        // Kiểm tra user đã sử dụng chưa
+        $user = \Illuminate\Support\Facades\Auth::guard('sanctum')->user();
+        if ($user) {
+            $alreadyUsed = \App\Models\Order::where('user_id', $user->user_id)
+                ->where('promo_id', $promo->promo_id)
+                ->exists();
+            if ($alreadyUsed) {
+                return response()->json(['error' => 'Bạn đã sử dụng mã giảm giá này trước đó'], 422);
+            }
         }
 
         $subtotal = $request->input('subtotal', 0);

@@ -2,85 +2,45 @@
   <section class="hero-section">
     <!-- Background Overlay -->
     <div class="hero-overlay"></div>
-    
+
     <!-- Decorative Elements -->
     <div class="hero-decoration hero-decoration-1"></div>
     <div class="hero-decoration hero-decoration-2"></div>
     <div class="hero-decoration hero-decoration-3"></div>
 
-    <!-- Slider Container (Static UI) -->
-    <div class="hero-slider">
-      <!-- Slide 1 - Active -->
-      <div class="hero-slide active">
-        <div class="hero-content">
-          <div class="hero-text">
-            <span class="hero-badge">🔥 Khuyến mãi đặc biệt</span>
-            <h1 class="hero-title">
-              Phụ Kiện Điện Thoại
-              <span class="hero-title-accent">Chính Hãng 100%</span>
-            </h1>
-            <p class="hero-description">
-              Techfive - Điểm đến tin cậy cho mọi phụ kiện điện thoại. 
-              Giá tốt nhất, giao hàng nhanh 2-4 tiếng nội thành.
-            </p>
-            <div class="hero-buttons">
-              <a href="/products" class="hero-btn hero-btn-primary">
-                <span>Mua ngay</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12h14"></path>
-                  <path d="m12 5 7 7-7 7"></path>
-                </svg>
-              </a>
-              <a href="/promotions" class="hero-btn hero-btn-secondary">
-                Xem ưu đãi
-              </a>
-            </div>
-            <div class="hero-stats">
-              <div class="hero-stat">
-                <span class="hero-stat-number">50K+</span>
-                <span class="hero-stat-label">Khách hàng</span>
-              </div>
-              <div class="hero-stat">
-                <span class="hero-stat-number">1000+</span>
-                <span class="hero-stat-label">Sản phẩm</span>
-              </div>
-              <div class="hero-stat">
-                <span class="hero-stat-number">4.9★</span>
-                <span class="hero-stat-label">Đánh giá</span>
-              </div>
-            </div>
-          </div>
-          <div class="hero-image">
-            <div class="hero-image-wrapper">
-              <img src="https://images.unsplash.com/photo-1606229365485-93a3b8ee0385?w=600&h=700&fit=crop" alt="Phụ kiện điện thoại" />
-              <div class="hero-image-badge">
-                <span class="discount">-30%</span>
-                <span class="text">Hôm nay</span>
-              </div>
-            </div>
+    <div class="hero-content">
+      <div class="hero-text">
+        <h1 class="hero-title">
+          Phụ Kiện Điện Thoại
+          <span class="hero-title-accent">Chính Hãng 100%</span>
+        </h1>
+        <p class="hero-description">
+          Techfive - Điểm đến tin cậy cho mọi phụ kiện điện thoại.
+          Giá tốt nhất, giao hàng nhanh 2-4 tiếng nội thành.
+        </p>
+        <div class="hero-buttons">
+          <a href="/products" class="hero-btn hero-btn-primary">
+            <span>Mua ngay</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"></path>
+              <path d="m12 5 7 7-7 7"></path>
+            </svg>
+          </a>
+          <a href="/promotions" class="hero-btn hero-btn-secondary">
+            Xem ưu đãi
+          </a>
+        </div>
+      </div>
+      <div class="hero-image">
+        <div class="hero-image-wrapper">
+          <img src="https://images.unsplash.com/photo-1606229365485-93a3b8ee0385?w=600&h=700&fit=crop" alt="Phụ kiện điện thoại" />
+          <div class="hero-image-badge">
+            <span class="discount">-30%</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Slider Dots -->
-    <div class="slider-dots">
-      <span class="dot active"></span>
-      <span class="dot"></span>
-      <span class="dot"></span>
-    </div>
-
-    <!-- Slider Arrows -->
-    <button class="slider-arrow slider-arrow-prev">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m15 18-6-6 6-6"></path>
-      </svg>
-    </button>
-    <button class="slider-arrow slider-arrow-next">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m9 18 6-6-6-6"></path>
-      </svg>
-    </button>
   </section>
 </template>
 
@@ -91,12 +51,14 @@
   height: 600px;
   background: linear-gradient(135deg, #0a1628 0%, #1a2d4a 50%, #0f2847 100%);
   overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: 
+  background:
     radial-gradient(circle at 20% 80%, rgba(255, 107, 53, 0.15) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(247, 147, 30, 0.1) 0%, transparent 50%);
 }
@@ -139,27 +101,13 @@
   50% { transform: translateY(-30px) scale(1.05); }
 }
 
-/* Slider */
-.hero-slider {
+.hero-content {
   position: relative;
   z-index: 10;
-  height: 100%;
-}
-
-.hero-slide {
-  display: none;
-  height: 100%;
-}
-
-.hero-slide.active {
-  display: block;
-}
-
-.hero-content {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   padding: 0 24px;
-  height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 60px;
@@ -327,68 +275,6 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Slider Dots */
-.slider-dots {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 12px;
-  z-index: 20;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.dot.active {
-  width: 36px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-}
-
-.dot:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-/* Slider Arrows */
-.slider-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  cursor: pointer;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.slider-arrow:hover {
-  background: rgba(255, 107, 53, 0.3);
-  border-color: #ff6b35;
-}
-
-.slider-arrow-prev {
-  left: 30px;
-}
-
-.slider-arrow-next {
-  right: 30px;
-}
-
 /* ================= RESPONSIVE ================= */
 @media (max-width: 1024px) {
   .hero-content {
@@ -421,10 +307,6 @@
 
   .hero-stats {
     justify-content: center;
-  }
-
-  .slider-arrow {
-    display: none;
   }
 }
 

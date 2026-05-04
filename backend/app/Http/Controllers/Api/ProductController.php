@@ -103,39 +103,60 @@ class ProductController extends Controller
 
 
     /**
-     * Chi tiết sản phẩm theo slug
+     * Chi tiết sản phẩm theo slug - WITH VARIANTS
      */
 public function show($slug)
 {
     try {
-        $product = Product::where('slug', $slug)
-            ->where('is_visible', 1)
-            ->with([
-                'variants' => function ($q) {
-                    $q->select([
-                        'variant_id', 'product_id', 'color', 'storage_size', 'name',
-                        'price_extra', 'sku', 'stock', 'image_urls'
-                    ]);
-                },
-                'category',
-                'comments' => function ($q) {
-                    $q->whereNull('parent_id')
-                      ->with(['user' => function ($q) {
-                          $q->select('id', 'full_name');
-                      }, 'replies.user'])
-                      ->orderBy('created_at', 'desc');
-                }
-            ])
-           ->firstOrFail();
+        Log::info("Loading product + variants: " . $slug);
+
+        $product = Product::select([
+            'product_id', 'name', 'slug', 'description', 'short_desc',
+            'base_price', 'discount_price', 'stock_total', 'likes_count',
+            'category_id', 'is_visible', 'is_featured', 'created_at'
+        ])
+        ->where('slug', $slug)
+        ->where('is_visible', 1)
+        ->first();
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Sản phẩm không tồn tại',
+                'debug' => ['slug' => $slug]
+            ], 404);
+        }
+
+        // Load variants SAFE - no 'price' column issue
+        $variants = \App\Models\ProductVariant::where('product_id', $product->product_id)
+            ->select('variant_id', 'product_id', 'color', 'storage_size', 'name', 'price_extra', 'sku', 'stock', 'image_urls')
+            ->get();
+
+        $product->variants = $variants;
+        $product->category = (object)['name' => 'Phụ kiện'];
+$product->load([
+    'comments' => function($query) {
+        $query->where('status', 'approved')
+              ->whereNull('parent_id')
+              ->with(['user:user_id,user_id,full_name,avatar', 'replies.user:user_id,user_id,full_name,avatar'])
+              ->orderBy('created_at', 'desc')
+              ->limit(100);
+    }
+]);
 
         $product->final_price = $product->discount_price ?? $product->base_price;
+        $product->sales_count = $product->likes_count ?? 0;
+
+        Log::info("Product + VARIANTS loaded", [
+            'id' => $product->product_id,
+            'variant_count' => $variants->count()
+        ]);
 
         return response()->json($product);
-    } catch (\Exception $e) {
-        Log::error("Error fetching product details: " . $e->getMessage());
-        return response()->json(['message' => 'Sản phẩm không tồn tại'], 404);
-    }
 
+    } catch (\Exception $e) {
+        Log::error("Product show ERROR: " . $e->getMessage());
+        return response()->json(['message' => 'Lỗi server', 'error' => $e->getMessage()], 500);
+    }
 }
     public function search(Request $request)
 {
@@ -188,7 +209,7 @@ public function adminIndex(Request $request)
         ->with(['category', 'variants' => function ($q) {
             $q->select('variant_id', 'product_id', 'name', 'color', 'storage_size', 'price_extra', 'stock', 'image_urls');
         }])
-        ->select('product_id', 'name', 'slug', 'base_price', 'discount_price', 'stock_total', 'is_visible', 'created_at');
+->select('product_id', 'name', 'slug', 'thumbnail', 'category_id', 'base_price', 'discount_price', 'stock_total', 'short_desc', 'description', 'is_visible', 'created_at');
 
     if ($request->filled('search')) {
         $search = '%' . $request->search . '%';
@@ -202,13 +223,24 @@ public function adminIndex(Request $request)
     $perPage = $request->input('per_page', 10);
     $products = $query->paginate($perPage);
 
-    $products->getCollection()->transform(function ($product) {
+$products->getCollection()->transform(function ($product) {
         $product->final_price = $product->discount_price ?? $product->base_price;
-        $product->thumbnail = null;
-        if ($product->variants->isNotEmpty()) {
-            $urls = $product->variants->first()->image_urls ?? [];
-            $product->thumbnail = !empty($urls[0]) ? "/storage/{$urls[0]}" : null;
+
+        // Prioritize product thumbnail, fallback to first variant image
+        if ($product->thumbnail) {
+            $product->thumbnail = ltrim($product->thumbnail, '/');  // Raw path for frontend storageUrl
+        } elseif ($product->variants->isNotEmpty()) {
+            $firstVariant = $product->variants->first();
+            if ($firstVariant && $firstVariant->image_urls) {
+                $urls = is_string($firstVariant->image_urls) ? json_decode($firstVariant->image_urls, true) : $firstVariant->image_urls;
+                $product->thumbnail = !empty($urls[0]) ? ltrim($urls[0], '/') : null;
+            } else {
+                $product->thumbnail = null;
+            }
+        } else {
+            $product->thumbnail = null;
         }
+
         return $product;
     });
 
@@ -245,8 +277,8 @@ public function store(Request $request)
 {
     $validated = $request->validate([
         'name' => 'required|string|max:255',
-        'slug' => 'required|string|unique:products',
-        'category_id' => 'required|exists:categories,id',
+        'slug' => 'required|string|unique:products,slug',
+        'category_id' => 'required|exists:categories,category_id',
         'base_price' => 'required|numeric|min:0',
         'discount_price' => 'nullable|numeric|min:0',
         'stock_total' => 'required|integer|min:0',
@@ -254,7 +286,7 @@ public function store(Request $request)
         'description' => 'nullable|string',
         'is_visible' => 'boolean',
         'main_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
-        'variants' => 'nullable|json',
+        'variants' => 'nullable|array',
         'variant_images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
     ]);
 
@@ -269,16 +301,18 @@ public function store(Request $request)
         'slug' => $validated['slug'],
         'category_id' => $validated['category_id'],
         'base_price' => $validated['base_price'],
-        'discount_price' => $validated['discount_price'],
+        'discount_price' => !empty($validated['discount_price']) && $validated['discount_price'] > 0
+            ? $validated['discount_price']
+            : null,
         'stock_total' => $validated['stock_total'],
-        'short_desc' => $validated['short_desc'],
-        'description' => $validated['description'],
+        'short_desc' => $validated['short_desc'] ?? null,
+        'description' => $validated['description'] ?? null,
         'is_visible' => $validated['is_visible'] ?? true,
         'thumbnail' => $mainImagePath,
     ]);
 
     // Xử lý biến thể
-    $variants = json_decode($request->variants, true) ?? [];
+    $variants = $request->input('variants', []);
     foreach ($variants as $idx => $v) {
         $variantImage = null;
         if ($request->hasFile("variant_images.$idx")) {
@@ -286,13 +320,15 @@ public function store(Request $request)
         }
 
         $product->variants()->create([
-            'sku' => $v['sku'],
-            'color' => $v['color'],
-            'storage_size' => $v['storage_size'],
-            'price_extra' => $v['price_extra'] ?? 0,
-            'stock' => $v['stock'] ?? 0,
-            'image_urls' => $variantImage ? json_encode([$variantImage]) : null,
-        ]);
+                'sku' => $v['sku'] ?? null,
+                'color' => $v['color'] ?? null,
+                'storage_size' => $v['storage_size'] ?? null,
+                'name' => $v['name'] ?? null,
+                'price' => isset($v['price']) && $v['price'] !== '' ? $v['price'] : null,
+                'price_extra' => $v['price_extra'] ?? 0,
+                'stock' => $v['stock'] ?? 0,
+                'image_urls' => $variantImage ? json_encode([$variantImage]) : null,
+            ]);
     }
 
     return response()->json(['success' => true, 'product' => $product], 201);
@@ -304,8 +340,8 @@ public function update($id, Request $request)
 
     $validated = $request->validate([
         'name' => 'required|string|max:255',
-        'slug' => 'required|string|unique:products,slug,' . $id,
-        'category_id' => 'required|exists:categories,id',
+        'slug' => 'required|string|unique:products,slug,' . $id . ',product_id',
+        'category_id' => 'required|exists:categories,category_id',
         'base_price' => 'required|numeric|min:0',
         'discount_price' => 'nullable|numeric|min:0',
         'stock_total' => 'required|integer|min:0',
@@ -313,7 +349,7 @@ public function update($id, Request $request)
         'description' => 'nullable|string',
         'is_visible' => 'boolean',
         'main_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
-        'variants' => 'nullable|json',
+        'variants' => 'nullable|array',
         'variant_images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
     ]);
 
@@ -322,25 +358,58 @@ public function update($id, Request $request)
         $validated['thumbnail'] = $request->file('main_image')->store('products', 'public');
     }
 
+    // Đảm bảo discount_price = NULL khi không có giá trị hợp lệ
+    $validated['discount_price'] = !empty($validated['discount_price']) && $validated['discount_price'] > 0
+        ? $validated['discount_price']
+        : null;
+
     $product->update($validated);
 
-    // Cập nhật biến thể (xóa cũ và thêm mới để đơn giản)
-    $product->variants()->delete();
-    $variants = json_decode($request->variants, true) ?? [];
+    // Cập nhật biến thể (đồng bộ)
+    $variants = $request->input('variants', []);
+    $existingVariantIds = [];
+
     foreach ($variants as $idx => $v) {
         $variantImage = null;
         if ($request->hasFile("variant_images.$idx")) {
             $variantImage = $request->file("variant_images.$idx")->store('variants', 'public');
         }
 
-        $product->variants()->create([
-            'sku' => $v['sku'],
-            'color' => $v['color'],
-            'storage_size' => $v['storage_size'],
+        $variantData = [
+            'sku' => $v['sku'] ?? null,
+            'color' => $v['color'] ?? null,
+            'storage_size' => $v['storage_size'] ?? null,
+            'name' => $v['name'] ?? null,
+            'price' => isset($v['price']) && $v['price'] !== '' ? $v['price'] : null,
             'price_extra' => $v['price_extra'] ?? 0,
             'stock' => $v['stock'] ?? 0,
-            'image_urls' => $variantImage ? json_encode([$variantImage]) : null,
-        ]);
+        ];
+
+        if ($variantImage) {
+            $variantData['image_urls'] = json_encode([$variantImage]);
+        }
+
+        if (!empty($v['variant_id'])) {
+            $variant = $product->variants()->find($v['variant_id']);
+            if ($variant) {
+                $variant->update($variantData);
+                $existingVariantIds[] = $variant->variant_id;
+                continue;
+            }
+        }
+
+        $newVariant = $product->variants()->create($variantData);
+        $existingVariantIds[] = $newVariant->variant_id;
+    }
+
+    // Xóa những biến thể cũ không còn dùng (thử catch để tránh lỗi Foreign Key giỏ hàng)
+    $variantsToDelete = $product->variants()->whereNotIn('variant_id', $existingVariantIds)->get();
+    foreach ($variantsToDelete as $variantToDelete) {
+        try {
+            $variantToDelete->delete();
+        } catch (\Exception $e) {
+            $variantToDelete->update(['stock' => 0]); // Ẩn khỏi hệ thống nếu đang vướng giỏ hàng
+        }
     }
 
     return response()->json(['success' => true, 'product' => $product]);

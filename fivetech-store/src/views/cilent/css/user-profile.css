@@ -419,15 +419,22 @@
 }
 
 .action-btn {
-    padding: 8px 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 40px;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
     font-size: 13px;
     font-weight: 600;
     color: #475569;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.25s;
+    white-space: nowrap;
+    line-height: 1;
+    text-decoration: none;
 }
 
 .action-btn:hover {
@@ -435,14 +442,53 @@
     border-color: #cbd5e1;
 }
 
-.action-btn.danger {
-    color: #ef4444;
+.action-btn.outline {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
+}
+.action-btn.outline:hover {
+    border-color: #ff6b35;
+    color: #ff6b35;
+    background: #fff7ed;
 }
 
+.action-btn.primary {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    border: none;
+    color: #fff;
+    padding: 0 18px;
+}
+.action-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.35);
+}
+
+.action-btn.danger {
+    background: #fef2f2;
+    border: 1.5px solid #fecaca;
+    color: #ef4444;
+}
 .action-btn.danger:hover {
     background: #ef4444;
     border-color: #ef4444;
     color: #ffffff;
+}
+
+.action-btn.review {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    border: none;
+    color: #fff;
+}
+.action-btn.review:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(251, 191, 36, 0.4);
+}
+
+.action-btn.small {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
 }
 
 /* Security Options */
@@ -653,19 +699,34 @@
     color: #d97706;
 }
 
-.order-status.processing {
+.order-status.confirmed {
     background: #dbeafe;
     color: #2563eb;
 }
 
-.order-status.shipping {
+.order-status.processing {
     background: #e0e7ff;
     color: #7c3aed;
+}
+
+.order-status.shipping {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.order-status.delivered {
+    background: #dcfce7;
+    color: #15803d;
 }
 
 .order-status.completed {
     background: #dcfce7;
     color: #16a34a;
+}
+
+.order-status.cancelled {
+    background: #fef2f2;
+    color: #ef4444;
 }
 
 /* Progress Track */
@@ -819,41 +880,9 @@
 
 .order-actions {
     display: flex;
-    gap: 12px;
-}
-
-.action-btn.outline {
-    background: transparent;
-    border: 2px solid #e2e8f0;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.action-btn.outline:hover {
-    border-color: #ff6b35;
-    color: #ff6b35;
-}
-
-.action-btn.primary {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-    border: none;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.action-btn.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(255, 107, 53, 0.35);
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 /* =====================================================
@@ -1498,3 +1527,100 @@
         grid-template-columns: 1fr;
     }
 }
+/* =====================================================
+   ADDRESS MANAGEMENT
+   ===================================================== */
+
+.address-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.address-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    transition: border-color 0.2s;
+}
+
+.address-item:hover { border-color: #f97316; }
+
+.address-main { flex: 1; }
+
+.address-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.address-top strong { font-size: 14px; color: #1e293b; }
+.address-phone { font-size: 13px; color: #64748b; }
+
+.address-badge { display: inline-flex; }
+.default-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f97316;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.address-text {
+    font-size: 13px;
+    color: #475569;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.address-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.action-btn.small {
+    padding: 12px 32px !important;
+    font-size: 12px !important;
+    height: auto !important;
+    min-width: unset !important;
+}
+
+.empty-address {
+    text-align: center;
+    padding: 24px;
+    color: #94a3b8;
+}
+.empty-address p { margin-bottom: 12px; }
+
+/* Form inputs trong modal địa chỉ */
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+.form-input:focus { border-color: #f97316; }
