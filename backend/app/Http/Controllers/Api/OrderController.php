@@ -15,6 +15,8 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
 use App\Models\ProductVariant;
+use App\Events\OrderCreated;
+use App\Events\OrderCompleted;
 
 class OrderController extends Controller
 {
@@ -185,6 +187,9 @@ class OrderController extends Controller
             CartItem::whereIn('id', $usedCartItemIds)->delete();
 
             DB::commit();
+
+            // Dispatch event — listener sends confirmation email via queue
+            OrderCreated::dispatch($order->fresh(['items.product', 'items.variant']));
 
             return response()->json([
                 'message' => 'Đặt hàng thành công',
