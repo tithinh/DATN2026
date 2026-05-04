@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\UserAddressController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\TrackOrderController;
 
 Route::prefix('v1')->group(function () {
 
@@ -75,6 +76,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{orderIdentifier}', [OrderController::class, 'show']);
     Route::post('/orders/track', [OrderController::class, 'sendTrackingLink']);
+    Route::post('/track-order', [TrackOrderController::class, 'track']);
 
     // Payment confirmation (public for webhook, protected for user/admin)
     Route::post('/orders/{orderIdentifier}/confirm-payment', [OrderController::class, 'updatePaymentStatus']);
