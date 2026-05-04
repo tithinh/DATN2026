@@ -41,7 +41,9 @@
       "Bash(/c/xampp/php/php.exe --ini)",
       "Bash(/c/xampp/php/php.exe -v)",
       "Bash(cat /c/xampp/phpMyAdmin/RELEASE-DATE-*)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(find \"/c/Users/Asus/Downloads/DATN2026 \\(1\\)/DATN2026/backend\" -name \"*.php\" -type f -exec grep -l \"Mail\\\\|Event\\\\|Listener\" {} \\\\;)",
+      "Bash(exist baocaoall.md del baocaoall.md)"
     ]
   }
 }
