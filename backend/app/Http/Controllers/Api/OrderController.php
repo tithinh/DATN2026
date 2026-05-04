@@ -690,6 +690,11 @@ $frontendUrl = config('frontend.url', 'http://localhost:5173');
 
         $order->update(['status' => $validated['status']]);
 
+        // Dispatch event if order is completed — listener sends completion email via queue
+        if ($validated['status'] === 'completed') {
+            OrderCompleted::dispatch($order->fresh(['items.product', 'items.variant']));
+        }
+
         return response()->json([
             'message' => 'Cập nhật trạng thái thành công',
             'success' => true,
