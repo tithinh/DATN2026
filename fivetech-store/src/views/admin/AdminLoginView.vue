@@ -48,7 +48,6 @@
             <input type="checkbox" v-model="rememberMe" />
             Ghi nhớ đăng nhập
           </label>
-          <a href="#" class="forgot-link">Quên mật khẩu?</a>
         </div>
 
         <!-- Submit -->

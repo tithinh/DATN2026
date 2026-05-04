@@ -52,25 +52,42 @@
 
               <div class="cart-item" v-for="item in cartStore.items" :key="item.id">
                 <div class="item-product" data-label="Sản phẩm">
-                  <img :src="item.image" :alt="item.name" class="item-image" />
-                  <div class="item-info">
+                  <img 
+  :src="getItemImage(item)" 
+  class="item-image"
+  @error="e => e.target.src = '/images/default-product.jpg'"
+/>
+  <div class="item-info">
                       {{ item.product.name }}
                     <span class="item-variant">
                       Phân loại: 
                       <template v-if="item.variant">
-                        {{ item.variant.color ? item.variant.color + ' - ' : '' }}
-                        {{ item.variant.name || 'Không xác định' }}
+                        {{ item.variant.color ? item.variant.color : '' }}
+                        {{ item.variant.name }}
                         {{ item.variant.storage_size ? ' (' + item.variant.storage_size + ')' : '' }}
                       </template>
                       <template v-else>Mặc định</template>
                     </span>
+                  </div>
+                  
+                  <div v-if="getItemImages(item).length > 1" class="image-thumbs">
+                    <button
+                      v-for="(imgSrc, index) in getItemImages(item)"
+                      :key="index"
+                      class="thumb"
+                      :class="{ 'thumb-active': selectedImage.value.get(item.id) === index }"
+                      @click="selectImage(item.id, index)"
+                      @error="e => e.target.style.display = 'none'"
+                    >
+                      <img :src="imgSrc" :alt="`Image ${index + 1}`" />
+                    </button>
                   </div>
                 </div>
 
                 <div class="item-price" data-label="Đơn giá">
                   {{ formatPrice(
                     (Number(item.product?.discount_price || item.product?.base_price || 0))
-                    + ((item.variant?.price_extra && Number(item.variant.price_extra) > 0) ? Number(item.variant.price_extra) : 0)
+                    + (item.variant?.price_extra ? Number(item.variant.price_extra) : 0)
                   ) }}
                 </div>
 
@@ -93,7 +110,7 @@
                 <div class="item-subtotal col-subtotal" data-label="Thành tiền">
                   {{ formatPrice(
                     ((Number(item.product?.discount_price || item.product?.base_price || 0))
-                    + ((item.variant?.price_extra && Number(item.variant.price_extra) > 0) ? Number(item.variant.price_extra) : 0)
+                    + (item.variant?.price_extra ? Number(item.variant.price_extra) : 0)
                     ) * item.quantity
                   ) }}
                 </div>
@@ -129,12 +146,32 @@
 
             <div class="coupon-section">
               <label class="form-label" style="color: #94a3b8; margin-bottom: 8px; display: block;">Mã giảm giá</label>
-              <div class="coupon-input-group">
-                <input 
-                  type="text" 
-                  v-model="cartStore.couponCode" 
-                  placeholder="Nhập mã voucher" 
-                  class="coupon-input" 
+
+              <!-- List available coupons (listbox) -->
+              <select
+                v-if="validCoupons.length > 0"
+                class="coupon-select"
+                v-model="selectedListCoupon"
+                @change="onSelectCoupon"
+                :disabled="cartStore.loading"
+              >
+                <option value="" disabled>-- Chọn mã giảm giá --</option>
+                <option
+                  v-for="coupon in validCoupons"
+                  :key="coupon.promo_id"
+                  :value="coupon.code"
+                >
+                  {{ coupon.code }} — Giảm {{ coupon.promo_type === 'percentage' ? coupon.discount_value + '%' : formatPrice(coupon.discount_value) }}{{ coupon.min_order_amount > 0 ? ' (Tối thiểu ' + formatPrice(coupon.min_order_amount) + ')' : '' }}
+                </option>
+              </select>
+
+              <!-- Manual input fallback -->
+              <div class="coupon-input-group" style="margin-top: 10px;">
+                <input
+                  type="text"
+                  v-model="cartStore.couponCode"
+                  placeholder="Nhập mã voucher khác"
+                  class="coupon-input"
                   :disabled="cartStore.loading"
                 />
                 <button
@@ -142,6 +179,12 @@
                   @click="applyCoupon"
                   :disabled="cartStore.loading"
                 >Áp dụng</button>
+              </div>
+
+              <!-- Applied coupon info -->
+              <div v-if="cartStore.hasDiscount" class="applied-coupon">
+                <span>Đã áp dụng: <strong>{{ cartStore.couponCode }}</strong> ({{ formatPrice(cartStore.discount) }})</span>
+                <button class="remove-coupon-btn" @click="removeCoupon" title="Bỏ chọn">×</button>
               </div>
             </div>
 
@@ -196,7 +239,8 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { storageUrl } from '@/utils/image'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
@@ -204,6 +248,13 @@ import { useAuthStore } from '@/stores/auth'
 const cartStore = useCartStore()
 const auth = useAuthStore()
 const router = useRouter()
+
+const selectedImage = ref(new Map())
+const selectedListCoupon = ref('')
+
+const validCoupons = computed(() =>
+  cartStore.availableCoupons.filter((c) => c.is_valid)
+)
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price || 0) + '₫'
@@ -238,6 +289,23 @@ const applyCoupon = async () => {
   }
 }
 
+const onSelectCoupon = async () => {
+  const code = selectedListCoupon.value
+  if (!code || cartStore.couponCode === code) return
+  try {
+    await cartStore.applyCoupon(code)
+    alert('Áp dụng mã giảm giá thành công!')
+  } catch (err) {
+    selectedListCoupon.value = ''
+    alert(err.message || 'Mã giảm giá không hợp lệ')
+  }
+}
+
+const removeCoupon = () => {
+  selectedListCoupon.value = ''
+  cartStore.removeCoupon()
+}
+
 const goToCheckout = () => {
   router.push('/checkout')
 }
@@ -246,10 +314,68 @@ const goToLogin = () => {
   router.push({ path: '/login', query: { redirect: '/cart' } })
 }
 
+const selectImage = (itemId, index) => {
+  selectedImage.value.set(itemId, index)
+}
+
 onMounted(async () => {
   // Luôn fetch cart (cho cả user và guest)
   await cartStore.fetchCart()
+  await cartStore.fetchAvailableCoupons()
 })
+const getItemImages = (item) => {
+  if (!item) return []
+
+  // Try variant images first
+  let urls = item.variant?.image_urls || item.product?.images || []
+
+  if (typeof urls === 'string') {
+    try {
+      urls = JSON.parse(urls)
+    } catch {
+      urls = []
+    }
+  }
+
+  if (!Array.isArray(urls)) urls = []
+
+  // Add thumbnail if no images
+  const thumb = item.product?.thumbnail || item.image
+  if (urls.length === 0 && thumb) {
+    urls = [thumb]
+  }
+
+  return urls.map(url => storageUrl(url))
+}
+
+const getItemImage = (item) => {
+  const selectedIdx = selectedImage.value.get(item.id)
+  const images = getItemImages(item)
+
+  if (selectedIdx !== undefined && images[selectedIdx]) {
+    return images[selectedIdx]
+  }
+
+  // Prioritize variant image first for .item-product
+  if (!item) return '/images/default-product.jpg'
+
+  // Variant image first (user request)
+  let urls = item.variant?.image_urls
+  if (typeof urls === 'string') {
+    try {
+      urls = JSON.parse(urls)
+    } catch {
+      urls = []
+    }
+  }
+  if (Array.isArray(urls) && urls.length > 0) {
+    return storageUrl(urls[0])
+  }
+
+  // Fallbacks
+  return storageUrl(item.product?.thumbnail || item.image || '/images/default-product.jpg')
+
+}
 </script>
 
 <style scoped>
@@ -268,6 +394,56 @@ onMounted(async () => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+}
+
+/* Coupon select (listbox) styles */
+.coupon-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.coupon-select:focus {
+  border-color: #f97316;
+}
+
+.coupon-select:disabled {
+  background: #f8fafc;
+  cursor: not-allowed;
+}
+
+.applied-coupon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #065f46;
+}
+
+.remove-coupon-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.remove-coupon-btn:hover {
+  color: #b91c1c;
 }
   
 /* Các class khác giữ nguyên từ code cũ của bạn */

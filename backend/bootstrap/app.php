@@ -25,6 +25,16 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
             \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         ]);
+
+        // Thêm StartSession cho API routes để hỗ trợ giỏ hàng khách vãng lai
+        $middleware->api(append: [
+            \Illuminate\Session\Middleware\StartSession::class,
+        ]);
+
+        // Đăng ký alias middleware
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\CheckAdmin::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
 

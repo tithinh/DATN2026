@@ -1,10 +1,12 @@
 <template>
   <div class="flex gap-6 bg-white p-6 rounded-xl shadow">
     <img 
-                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
-                  :alt="product.name"
-                  class="product-image"
-                />
+      :src="getItemImage()"
+      :alt="item.product?.name || 'Sản phẩm'"
+      class="product-image"
+      @error="handleImageError"
+/>
+
 
     <div class="flex-1">
       <h3 class="font-semibold text-lg mb-2">
@@ -66,9 +68,35 @@ const addToCart = async (productId, variantId, quantity = 1) => {
     alert('Không thể thêm vào giỏ: ' + (err.response?.data?.message || err.message))
   }
 }
+const getItemImage = () => {
+  if (!props.item) return '/images/default-product.jpg'
+
+  // Parse variant images
+  let urls = props.item.variant?.image_urls || []
+  if (typeof urls === 'string') {
+    try {
+      urls = JSON.parse(urls)
+    } catch {
+      urls = []
+    }
+  }
+
+  if (Array.isArray(urls) && urls.length > 0) {
+    return storageUrl(urls[0])
+  }
+
+  // Fallback to product thumbnail
+  return storageUrl(props.item.product?.thumbnail || '/images/default-product.jpg')
+}
+
+const handleImageError = (event) => {
+  event.target.src = '/images/default-product.jpg'
+}
+
 const props = defineProps({
   item: Object
 })
+
 
 
 const formatPrice = (price) =>

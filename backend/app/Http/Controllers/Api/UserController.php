@@ -18,7 +18,7 @@ class UserController extends Controller
     {
         try {
             $query = User::query()
-                ->select('user_id', 'full_name', 'email', 'phone', 'address', 'role', 'is_active', 'created_at');
+                ->select('user_id', 'full_name', 'email', 'phone', 'address', 'role', 'is_active', 'created_at', 'google_id');
 
             // Tìm kiếm
             if ($request->filled('search')) {

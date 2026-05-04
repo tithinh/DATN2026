@@ -97,14 +97,27 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
-            'slug'        => 'required|string|unique:categories,slug',
+            'slug'        => 'sometimes|required|string|unique:categories,slug',
             'parent_id'   => 'nullable|exists:categories,category_id',
             'description' => 'nullable|string',
             'icon'        => 'nullable|string|max:255',
+            'color'       => 'nullable|string|max:7',
             'sort_order'  => 'nullable|integer',
             'is_active'   => 'boolean',
             'is_featured' => 'boolean',
         ]);
+
+        // Auto-generate slug if not provided
+        if (empty($validated['slug'])) {
+            $validated['slug'] = \Illuminate\Support\Str::slug($request->name);
+        }
+
+        // Map is_visible to is_active if present
+        if ($request->has('is_visible')) {
+            $validated['is_active'] = $request->is_visible;
+        }
+
+        $validated['is_featured'] = $validated['is_featured'] ?? false;
 
         $category = Category::create($validated);
 
@@ -120,14 +133,27 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
-            'slug'        => 'required|string|unique:categories,slug,' . $category_id,
+            'slug'        => 'sometimes|required|string|unique:categories,slug,' . $category_id,
             'parent_id'   => 'nullable|exists:categories,category_id',
             'description' => 'nullable|string',
             'icon'        => 'nullable|string|max:255',
+            'color'       => 'nullable|string|max:7',
             'sort_order'  => 'nullable|integer',
             'is_active'   => 'boolean',
             'is_featured' => 'boolean',
         ]);
+
+        // Auto-generate slug if not provided
+        if (empty($validated['slug'])) {
+            $validated['slug'] = \Illuminate\Support\Str::slug($request->name);
+        }
+
+        // Map is_visible to is_active if present
+        if ($request->has('is_visible')) {
+            $validated['is_active'] = $request->is_visible;
+        }
+
+        $validated['is_featured'] = $validated['is_featured'] ?? false;
 
         $category->update($validated);
 

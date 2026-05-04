@@ -18,23 +18,15 @@ class CartController extends Controller
     {
         $user = Auth::guard('sanctum')->user();
 
-        if ($user) {
-            // User đã đăng nhập: lấy theo user_id
-            $items = CartItem::with(['product', 'variant'])
-                ->where('user_id', $user->id)
-                ->get();
-        } else {
-            // Guest: luôn dùng user_id = 1, không tin vào header
-            $items = CartItem::with(['product', 'variant'])
-                ->where('user_id', 1)
-                ->get();
-        }
+        $userId = $user ? $user->user_id : 1;
+
+$items = CartItem::with(['product', 'variant', 'product.category'])
+            ->where('user_id', $userId)
+            ->get();
 
         $subtotal = $items->sum(function ($item) {
-            // Giá gốc = discount_price nếu có, không thì base_price
-            $basePrice = $item->product->discount_price ?? $item->product->base_price;
-            // Cộng thêm price_extra từ variant nếu có
-            $extra = ($item->variant && $item->variant->price_extra > 0) ? $item->variant->price_extra : 0;
+            $basePrice = $item->product->discount_price ?? $item->product->base_price ?? 0;
+            $extra = $item->variant->price_extra ?? 0;
             return ($basePrice + $extra) * $item->quantity;
         });
 
@@ -57,25 +49,38 @@ class CartController extends Controller
 
         $variant = ProductVariant::findOrFail($validated['variant_id']);
 
-        // Kiểm tra tồn kho
         if ($validated['quantity'] > $variant->stock) {
             return response()->json(['message' => 'Số lượng vượt quá tồn kho'], 422);
         }
 
-        // Xác định user_id
         $user = Auth::guard('sanctum')->user();
+        $userId = $user ? $user->user_id : 1;
 
-        // Sử dụng user_id từ auth hoặc guest (mặc định = 1, không tin header)
-        $userId = $user ? $user->id : 1;
+        // Check if item already exists
+        $existingItem = CartItem::where('user_id', $userId)
+            ->where('variant_id', $validated['variant_id'])
+            ->first();
 
-        CartItem::create([
-            'user_id' => $userId,
-            'product_id' => $variant->product_id,
-            'variant_id' => $validated['variant_id'],
-            'quantity' => $validated['quantity'],
-        ]);
+        if ($existingItem) {
+            // Update quantity +1
+            $newQuantity = $existingItem->quantity + $validated['quantity'];
+            if ($newQuantity > $variant->stock) {
+                return response()->json(['message' => 'Số lượng vượt quá tồn kho'], 422);
+            }
+            $existingItem->update(['quantity' => $newQuantity]);
+            $message = 'Đã tăng số lượng trong giỏ hàng';
+        } else {
+            // Create new
+            CartItem::create([
+                'user_id' => $userId,
+                'product_id' => $variant->product_id,
+                'variant_id' => $validated['variant_id'],
+                'quantity' => $validated['quantity'],
+            ]);
+            $message = 'Đã thêm vào giỏ hàng';
+        }
 
-        return response()->json(['message' => 'Đã thêm vào giỏ hàng']);
+        return response()->json(['message' => $message]);
     }
 
     /**
@@ -91,20 +96,17 @@ class CartController extends Controller
 
         $cartItem = CartItem::findOrFail($validated['id']);
 
-        // Kiểm tra ownership
         $user = Auth::guard('sanctum')->user();
-        $ownerId = $user ? $user->id : 1;
-        if ($cartItem->user_id != $ownerId) {
-            return response()->json(['message' => 'Không có quyền cập nhật sản phẩm này'], 403);
-        }
+        // $ownerId = $user ? $user->getKey() : 1;
+        // if ($cartItem->user_id != $ownerId) {
+        //     return response()->json(['message' => 'Không có quyền cập nhật sản phẩm này'], 403);
+        // }
 
-        // Cập nhật số lượng và variant_id (nếu gửi)
         $cartItem->update([
             'quantity' => $validated['quantity'],
             'variant_id' => $validated['variant_id'] ?? $cartItem->variant_id,
         ]);
 
-        // Tùy chọn: reload item với quan hệ để trả về thông tin đầy đủ
         $cartItem->load(['variant', 'variant.product']);
 
         return response()->json([
@@ -120,17 +122,17 @@ class CartController extends Controller
     {
         $cartItem = CartItem::findOrFail($id);
 
-        // Kiểm tra ownership
         $user = Auth::guard('sanctum')->user();
-        $ownerId = $user ? $user->id : 1;
-        if ($cartItem->user_id != $ownerId) {
-            return response()->json(['message' => 'Không có quyền xóa sản phẩm này'], 403);
-        }
+        // $ownerId = $user ? $user->getKey() : 1;
+        // if ($cartItem->user_id != $ownerId) {
+        //     return response()->json(['message' => 'Không có quyền xóa sản phẩm này'], 403);
+        // }
 
         $cartItem->delete();
 
         return response()->json(['message' => 'Xóa sản phẩm thành công'], 200);
     }
+
     /**
      * Xóa toàn bộ giỏ hàng
      */
@@ -139,11 +141,9 @@ class CartController extends Controller
         $user = Auth::guard('sanctum')->user();
 
         if ($user) {
-            CartItem::where('user_id', $user->id)->delete();
+            CartItem::where('user_id', $user->getKey())->delete();
         } else {
-            CartItem::where('session_id', $request->session()->getId())
-                ->whereNull('user_id')
-                ->delete();
+            CartItem::where('user_id', 1)->delete();
         }
 
         return response()->json(['message' => 'Đã xóa toàn bộ giỏ hàng']);
@@ -155,20 +155,14 @@ class CartController extends Controller
     public function total(Request $request)
     {
         $user = Auth::guard('sanctum')->user();
+        $userId = $user ? $user->user_id : 1;
 
-        $query = CartItem::query();
-
-        if ($user) {
-            $query->where('user_id', $user->id);
-        } else {
-            $query->where('session_id', $request->session()->getId())
-                ->whereNull('user_id');
-        }
+        $query = CartItem::with(['product', 'variant'])->where('user_id', $userId);
 
         $totalQuantity = $query->sum('quantity');
         $totalPrice = $query->get()->sum(function ($item) {
             $basePrice = $item->product->discount_price ?? $item->product->base_price;
-            $extra = ($item->variant && $item->variant->price_extra > 0) ? $item->variant->price_extra : 0;
+            $extra = $item->variant->price_extra ?? 0;
             return ($basePrice + $extra) * $item->quantity;
         });
 

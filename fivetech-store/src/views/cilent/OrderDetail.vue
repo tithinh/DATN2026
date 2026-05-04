@@ -100,7 +100,7 @@
                 Địa chỉ giao hàng
               </h3>
               <div class="card-content">
-                <p class="address">{{ order.customer?.address }}</p>
+                <p class="address">{{ order.shipping_address || order.customer?.address }}</p>
                 <p v-if="order.customer?.district" class="district">{{ order.customer?.district }}</p>
               </div>
             </div>
@@ -144,7 +144,7 @@
             <div class="items-list">
               <div class="item-card" v-for="item in order.items" :key="item.id">
                 <div class="item-image">
-                  <img :src="item.image || '/images/default-product.jpg'" :alt="item.name" />
+                  <img :src="storageUrl(item.product?.thumbnail || item.image || item.variant?.image_urls?.[0])"/>
                 </div>
                 <div class="item-info">
                   <h4 class="item-name">{{ item.name }}</h4>
@@ -213,6 +213,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { storageUrl } from '@/utils/image'
 import api from '@/api'
 
 const route = useRoute()

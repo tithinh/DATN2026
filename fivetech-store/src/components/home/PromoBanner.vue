@@ -3,7 +3,6 @@
     <div class="banner-container">
       <div class="banner-content">
         <div class="banner-text">
-          <span class="banner-tag">🎁 Ưu đãi đặc biệt</span>
           <h2 class="banner-title">Giảm đến 50% Phụ kiện iPhone</h2>
           <p class="banner-description">
             Áp dụng cho tất cả ốp lưng, cáp sạc, kính cường lực iPhone 15 Series.

@@ -4,8 +4,10 @@
     <div class="header-container">
       <!-- Logo -->
       <a href="/" class="logo">
-        <span class="logo-icon">T5</span>
-        <span class="logo-text">Techfive</span>
+        <span class="logo-icon">
+              <img src="/images/logo-t5.png" alt="T5 Logo" />
+            </span>
+        <span class="logo-text">TF</span>
       </a>
 
       <!-- Navigation Menu -->
@@ -202,18 +204,13 @@ onMounted(() => {
   text-decoration: none;
 }
 
-.logo-icon {
-  width: 44px;
-  height: 44px;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 800;
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+.logo-icon img{
+  width: 60px;
+  height: 60px;
+  background-image: url('/images/logo-t5.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 .logo-text {

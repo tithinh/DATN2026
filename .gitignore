@@ -1,0 +1,13 @@
+# Backup files
+*.rar
+*.zip
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

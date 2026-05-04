@@ -55,14 +55,12 @@
                   <span class="rating-text">{{ averageRating.toFixed(1) }} ({{ product.comments?.length || 0 }} đánh giá)</span>
                 </div>
                 <span class="divider">|</span>
-                <span class="sold">Đã bán {{ product.sales_count || '0' }}</span>
-                <span class="divider">|</span>
                 <span class="sku">SKU: {{ selectedVariant?.sku || product.slug?.toUpperCase() }}</span>
               </div>
 
               <div class="price-box">
-                <span class="current-price">{{ formatPrice(selectedVariant?.discount_price || product.discount_price || product.base_price) }}đ</span>
-                <span v-if="discountPercent > 0" class="old-price">{{ formatPrice(selectedVariant?.base_price || product.base_price) }}đ</span>
+                <span class="current-price">{{ formatPrice(currentVariantPrice) }}</span>
+                <span v-if="discountPercent > 0" class="old-price">{{ formatPrice(currentVariantOldPrice) }}</span>
                 <span v-if="discountPercent > 0" class="discount-badge">-{{ discountPercent }}%</span>
               </div>
 
@@ -74,12 +72,41 @@
                     v-for="variant in product.variants"
                     :key="variant.variant_id"
                     class="variant-btn"
-                    :class="{ active: selectedVariant?.variant_id === variant.variant_id }"
-                    @click="selectVariant(variant)"
+                    :class="{ active: selectedVariant?.variant_id === variant.variant_id, 'out-of-stock': variant.stock <= 0 }"
+                    @click="variant.stock > 0 && selectVariant(variant)"
+                    :title="variant.stock <= 0 ? 'Hết hàng' : ''"
                   >
-                    <span class="color-dot" :style="{ backgroundColor: variant.color || '#000' }"></span>
-                    {{ variant.name || variant.color || variant.storage_size || 'Mặc định' }}
+
+                    <img
+                      v-if="variant.image_urls && variant.image_urls.length"
+                      :src="getVariantImage(variant.image_urls[0])"
+                      class="variant-icon"
+                      :alt="variant.name || 'Variant'"
+                      @error="$event.target.style.display = 'none'"
+                    />
+                    <span
+                      v-else-if="variant.color_hex"
+                      class="color-dot"
+                      :style="{ backgroundColor: variant.color_hex }"
+                    ></span>
+
+                    <span class="variant-label">{{ variant.name || variant.color || variant.storage_size || 'Mặc định' }}</span>
+                    
+                    <span v-if="variant.stock <= 0" class="variant-oos-badge">Hết</span>
                   </button>
+                </div>
+
+                <!-- Thumbnail ảnh variant đang chọn -->
+                <div v-if="variantImages.length > 1" class="variant-thumbs">
+                  <img
+                    v-for="(img, i) in variantImages"
+                    :key="i"
+                    :src="img"
+                    class="variant-thumb"
+                    :class="{ active: selectedImage === img }"
+                    @click="selectedImage = img"
+                    @error="$event.target.style.display='none'"
+                  />
                 </div>
               </div>
 
@@ -137,7 +164,14 @@
               :class="{ active: activeTab === 'reviews' }"
               @click="activeTab = 'reviews'"
             >
-              Đánh giá ({{ product?.comments?.length || 0 }})
+              Đánh giá ({{ totalRatings }})
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'comments' }"
+              @click="activeTab = 'comments'"
+            >
+              Bình luận ({{ totalComments }})
             </button>
           </div>
 
@@ -166,104 +200,200 @@
             <div v-if="activeTab === 'reviews'" class="tab-pane">
               <h3>Đánh giá từ khách hàng</h3>
 
+              <!-- Enhanced Reviews Summary -->
               <div class="reviews-summary">
                 <div class="rating-overview">
-                  <span class="big-rating">{{ averageRating.toFixed(1) }}</span>
+                  <span class="big-rating" v-if="totalRatings > 0">{{ averageRating.toFixed(1) }}</span>
+                  <span class="big-rating no-rating" v-else>—</span>
                   <div class="rating-details">
-                    <span class="stars-big">★★★★★</span>
-                    <span class="total-reviews">{{ product.comments.length }} đánh giá</span>
+                    <span class="stars-big" v-if="totalRatings > 0">★★★★★</span>
+                    <span class="total-reviews">{{ totalRatings }} đánh giá</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Form đánh giá mới -->
-              <div v-if="auth.isAuthenticated" class="comment-form">
-                <h4>Viết bình luận của bạn</h4>
+              <!-- Form đánh giá -->
+              <!-- <div v-if="auth.isAuthenticated" class="comment-form">
+                <h4>Viết đánh giá</h4>
                 <div class="rating-input">
-                  <span>Đánh giá:</span>
+                  <span>Đánh giá sao của bạn:</span>
                   <div class="stars-select">
-                    <span 
-                      v-for="star in 5" 
+                    <span
+                      v-for="star in 5"
                       :key="star"
-                      class="star" 
+                      class="star"
                       :class="{ active: newRating >= star }"
                       @click="newRating = star"
                     >★</span>
+                    <span class="rating-label" v-if="newRating > 0">({{ newRating }}/5)</span>
                   </div>
                 </div>
-                <textarea 
-                  v-model="newComment" 
-                  placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..." 
+                <textarea
+                  v-model="newComment"
+                  placeholder="Chia sẻ cảm nhận chi tiết kèm đánh giá sao..."
                   class="comment-textarea"
                   rows="4"
                 ></textarea>
-                <button 
-                  class="submit-comment-btn" 
+                <button
+                  class="submit-comment-btn"
                   :disabled="!newComment.trim() || newRating === 0 || submittingComment"
-                  @click="submitComment"
+                  @click="submitRating"
                 >
                   {{ submittingComment ? 'Đang gửi...' : 'Gửi đánh giá' }}
                 </button>
               </div>
-
               <div v-else class="login-to-comment">
-                <p>Vui lòng <router-link to="/login">đăng nhập</router-link> để viết đánh giá!</p>
-              </div>
+                <p>Vui lòng <router-link to="/login">đăng nhập</router-link> để đánh giá.</p>
+              </div> -->
 
-              <!-- Danh sách bình luận -->
-              <div class="reviews-list" v-if="product.comments.length">
-                <div v-for="comment in paginatedComments" :key="comment.comment_id" class="review-card">
-                  <!-- Nội dung bình luận giữ nguyên, chỉ cần đảm bảo ảnh reviewer dùng đúng đường dẫn nếu có -->
-                  <div class="review-header">
-                    <img
-                      :src="comment.user?.avatar ? storageUrl(comment.user.avatar) : 'https://ui-avatars.com/api/?name=' + (comment.user?.full_name?.charAt(0) || 'K')"
-                      alt="Avatar"
-                      class="reviewer-avatar"
-                    />
-                    <!-- Phần còn lại giữ nguyên -->
+              <!-- Danh sách Đánh giá -->
+              <div v-if="ratingsList.length" class="reviews-section">
+                <h4 class="section-title">⭐ Đánh giá ({{ ratingsList.length }})</h4>
+                <div class="reviews-list">
+                  <div v-for="comment in paginatedRatings" :key="comment.comment_id" class="review-card">
+                    <div class="review-header">
+                      <img
+                        :src="comment.user?.avatar ? storageUrl(comment.user.avatar) : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(comment.user?.full_name?.charAt(0) || 'K')"
+                        alt="Avatar"
+                        class="reviewer-avatar"
+                      />
+                      <div class="review-meta">
+                        <span class="reviewer-name">{{ comment.user?.full_name || 'Khách' }}</span>
+                        <span class="review-date">{{ formatDate(comment.created_at) }}</span>
+                      </div>
+                      <div class="review-stars">
+                        <span v-for="s in 5" :key="s" :class="s <= comment.rating ? 'star-on' : 'star-off'">★</span>
+                        <span class="rating-label-small">({{ comment.rating }}/5)</span>
+                      </div>
+                    </div>
+                    <p class="review-content">{{ comment.content }}</p>
+                    <div v-if="auth.isAuthenticated" class="reply-actions">
+                      <button class="reply-link" @click="toggleReplyForm(comment.comment_id)">Trả lời</button>
+                    </div>
+                    <div v-if="replyForms[comment.comment_id]" class="reply-form">
+                      <textarea
+                        v-model="replyContent[comment.comment_id]"
+                        placeholder="Nhập nội dung trả lời..."
+                        class="comment-textarea"
+                        rows="2"
+                      ></textarea>
+                      <div class="reply-form-actions">
+                        <button class="btn-cancel" @click="cancelReply(comment.comment_id)">Hủy</button>
+                        <button class="submit-comment-btn" :disabled="!replyContent[comment.comment_id]?.trim() || replying" @click="submitReply(comment.comment_id)">
+                          {{ replying ? 'Đang gửi...' : 'Gửi trả lời' }}
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Replies -->
+                    <div v-if="comment.replies?.length" class="replies-list">
+                      <div v-for="reply in comment.replies" :key="reply.comment_id" class="reply-card">
+                        <img
+                          :src="reply.user?.avatar ? storageUrl(reply.user.avatar) : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(reply.user?.full_name?.charAt(0) || 'K')"
+                          alt="Avatar"
+                          class="reviewer-avatar small"
+                        />
+                        <div class="reply-body">
+                          <span class="reviewer-name">{{ reply.user?.full_name || 'Khách' }}</span>
+                          <p class="review-content">{{ reply.content }}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <!-- ... nội dung bình luận, sửa/xóa, trả lời ... giữ nguyên -->
+                </div>
+                <div v-if="totalRatingPages > 1" class="comment-pagination">
+                  <button :disabled="ratingPage === 1" @click="ratingPage--">Trước</button>
+                  <span>{{ ratingPage }} / {{ totalRatingPages }}</span>
+                  <button :disabled="ratingPage === totalRatingPages" @click="ratingPage++">Sau</button>
                 </div>
               </div>
-              <p v-else>Chưa có đánh giá nào.</p>
 
-              <!-- Phân trang bình luận giữ nguyên -->
+              <p v-if="!ratingsList.length">Chưa có đánh giá nào.</p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- Related Products -->
-      <section class="related-section">
-        <div class="container">
-          <h2 class="section-title">Sản phẩm liên quan</h2>
-          <div class="related-grid">
-            <router-link
-              v-for="related in relatedProducts"
-              :key="related.product_id"
-              :to="`/products/${related.slug}`"
-              class="related-card-link"
-            >
-              <article class="product-card">
-                <span v-if="related.is_featured" class="product-badge badge-new">New</span>
-                <div class="product-image-wrapper">
-                  <img 
-                    :src="getRelatedImage(related)"
-                    :alt="related.name"
-                    class="product-image"
-                    loading="lazy"
-                    @error="handleImageError"
-                  />
-                </div>
-                <div class="product-card-info">
-                  <h3 class="product-name">{{ related.name }}</h3>
-                  <div class="product-price">
-                    <span class="current-price">{{ formatPrice(related.discount_price || related.base_price) }}đ</span>
+            <!-- Bình luận -->
+            <div v-if="activeTab === 'comments'" class="tab-pane">
+              <h3>Bình luận</h3>
+
+              <!-- Form bình luận -->
+              <div v-if="auth.isAuthenticated" class="comment-form">
+                <h4>Viết bình luận</h4>
+                <textarea
+                  v-model="newCommentOnly"
+                  placeholder="Chia sẻ suy nghĩ của bạn về sản phẩm..."
+                  class="comment-textarea"
+                  rows="4"
+                ></textarea>
+                <button
+                  class="submit-comment-btn"
+                  :disabled="!newCommentOnly.trim() || submittingCommentOnly"
+                  @click="submitCommentOnly"
+                >
+                  {{ submittingCommentOnly ? 'Đang gửi...' : 'Gửi bình luận' }}
+                </button>
+              </div>
+              <div v-else class="login-to-comment">
+                <p>Vui lòng <router-link to="/login">đăng nhập</router-link> để bình luận.</p>
+              </div>
+
+              <!-- Danh sách Bình luận -->
+              <div v-if="commentsList.length" class="reviews-section">
+                <h4 class="section-title">💬 Bình luận ({{ commentsList.length }})</h4>
+                <div class="reviews-list">
+                  <div v-for="comment in paginatedCommentsOnly" :key="comment.comment_id" class="review-card">
+                    <div class="review-header">
+                      <img
+                        :src="comment.user?.avatar ? storageUrl(comment.user.avatar) : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(comment.user?.full_name?.charAt(0) || 'K')"
+                        alt="Avatar"
+                        class="reviewer-avatar"
+                      />
+                      <div class="review-meta">
+                        <span class="reviewer-name">{{ comment.user?.full_name || 'Khách' }}</span>
+                        <span class="review-date">{{ formatDate(comment.created_at) }}</span>
+                      </div>
+                    </div>
+                    <p class="review-content">{{ comment.content }}</p>
+                    <div v-if="auth.isAuthenticated" class="reply-actions">
+                      <button class="reply-link" @click="toggleReplyForm(comment.comment_id)">Trả lời</button>
+                    </div>
+                    <div v-if="replyForms[comment.comment_id]" class="reply-form">
+                      <textarea
+                        v-model="replyContent[comment.comment_id]"
+                        placeholder="Nhập nội dung trả lời..."
+                        class="comment-textarea"
+                        rows="2"
+                      ></textarea>
+                      <div class="reply-form-actions">
+                        <button class="btn-cancel" @click="cancelReply(comment.comment_id)">Hủy</button>
+                        <button class="submit-comment-btn" :disabled="!replyContent[comment.comment_id]?.trim() || replying" @click="submitReply(comment.comment_id)">
+                          {{ replying ? 'Đang gửi...' : 'Gửi trả lời' }}
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Replies -->
+                    <div v-if="comment.replies?.length" class="replies-list">
+                      <div v-for="reply in comment.replies" :key="reply.comment_id" class="reply-card">
+                        <img
+                          :src="reply.user?.avatar ? storageUrl(reply.user.avatar) : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(reply.user?.full_name?.charAt(0) || 'K')"
+                          alt="Avatar"
+                          class="reviewer-avatar small"
+                        />
+                        <div class="reply-body">
+                          <span class="reviewer-name">{{ reply.user?.full_name || 'Khách' }}</span>
+                          <p class="review-content">{{ reply.content }}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="product-rating"><span class="stars">★★★★★</span></div>
                 </div>
-              </article>
-            </router-link>
+                <div v-if="totalCommentOnlyPages > 1" class="comment-pagination">
+                  <button :disabled="commentOnlyPage === 1" @click="commentOnlyPage--">Trước</button>
+                  <span>{{ commentOnlyPage }} / {{ totalCommentOnlyPages }}</span>
+                  <button :disabled="commentOnlyPage === totalCommentOnlyPages" @click="commentOnlyPage++">Sau</button>
+                </div>
+              </div>
+
+              <p v-if="!commentsList.length">Chưa có bình luận nào.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -293,10 +423,14 @@ const quantity = ref(1)
 // Tab active
 const activeTab = ref('description')
 
-// Bình luận mới (giữ nguyên)
+// Form đánh giá
 const newComment = ref('')
 const newRating = ref(0)
 const submittingComment = ref(false)
+
+// Form bình luận
+const newCommentOnly = ref('')
+const submittingCommentOnly = ref(false)
 
 // Trả lời & sửa bình luận (giữ nguyên)
 const replyForms = ref({})
@@ -309,11 +443,39 @@ const editContent = ref('')
 const editRating = ref(0)
 const isEditing = ref(false)
 
-// Computed rating (giữ nguyên)
+// Phân trang đánh giá & bình luận riêng
+const ratingPage = ref(1)
+const commentOnlyPage = ref(1)
+const itemsPerPage = 5
+
+const ratingsList = computed(() => product.value?.comments?.filter(c => c.rating > 0) || [])
+const commentsList = computed(() => product.value?.comments?.filter(c => !c.rating || c.rating === 0) || [])
+
+const paginatedRatings = computed(() => {
+  const start = (ratingPage.value - 1) * itemsPerPage
+  return ratingsList.value.slice(start, start + itemsPerPage)
+})
+const totalRatingPages = computed(() => Math.ceil(ratingsList.value.length / itemsPerPage))
+
+const paginatedCommentsOnly = computed(() => {
+  const start = (commentOnlyPage.value - 1) * itemsPerPage
+  return commentsList.value.slice(start, start + itemsPerPage)
+})
+const totalCommentOnlyPages = computed(() => Math.ceil(commentsList.value.length / itemsPerPage))
+
+const specifications = computed(() => {
+  return product.value?.specifications?.split('\n').filter(s => s.trim()) || []
+})
+
+// Separate counts for ratings vs comments
+const totalRatings = computed(() => ratingsList.value.length)
+const totalComments = computed(() => commentsList.value.length)
+
+// Average rating (only from ratings)
 const averageRating = computed(() => {
-  if (!product.value?.comments?.length) return 0
-  const sum = product.value.comments.reduce((acc, c) => acc + (Number(c.rating) || 5), 0)
-  return sum / product.value.comments.length
+  if (!ratingsList.value.length) return 0
+  const sum = ratingsList.value.reduce((acc, c) => acc + Number(c.rating), 0)
+  return sum / ratingsList.value.length
 })
 
 // Computed ảnh chính (ưu tiên ảnh được chọn → ảnh đầu của variant đang chọn → ảnh đầu của variant đầu tiên)
@@ -375,6 +537,12 @@ const variantImages = computed(() => {
 })
 
 // Ảnh cho Related Products
+
+const getVariantImage = (imagePath) => {
+  if (!imagePath) return ''
+  return imagePath.startsWith('http') ? imagePath : storageUrl(imagePath)
+}
+
 const getRelatedImage = (related) => {
   const firstVariant = related.variants?.[0]
   if (firstVariant?.image_urls?.length) {
@@ -387,10 +555,36 @@ const getRelatedImage = (related) => {
   }
 }
 
+
 // Các computed khác giữ nguyên
+const currentVariantPrice = computed(() => {
+  if (selectedVariant.value?.price != null && selectedVariant.value.price > 0) {
+    return Number(selectedVariant.value.price)
+  }
+  const base = product.value?.discount_price || product.value?.base_price || 0
+  const extra = selectedVariant.value?.price_extra || 0
+  return Number(base) + Number(extra)
+})
+
+const currentVariantOldPrice = computed(() => {
+  if (selectedVariant.value?.price != null && selectedVariant.value.price > 0) {
+    return Number(product.value?.base_price || selectedVariant.value.price)
+  }
+  const base = product.value?.base_price || 0
+  const extra = selectedVariant.value?.price_extra || 0
+  return Number(base) + Number(extra)
+})
+
+// Helper: lấy giá hiển thị của 1 variant (dùng trong danh sách variant buttons)
+const getVariantPrice = (variant) => {
+  if (variant.price != null && variant.price > 0) return Number(variant.price)
+  const base = product.value?.discount_price || product.value?.base_price || 0
+  return Number(base) + Number(variant.price_extra || 0)
+}
+
 const discountPercent = computed(() => {
-  const base = selectedVariant.value?.base_price || product.value?.base_price
-  const final = selectedVariant.value?.discount_price || product.value?.discount_price || product.value?.base_price
+  const base = currentVariantOldPrice.value
+  const final = currentVariantPrice.value
   return base && final && base > final ? Math.round((base - final) / base * 100) : 0
 })
 
@@ -398,12 +592,7 @@ const maxQuantity = computed(() => selectedVariant.value?.stock || product.value
 
 const productFeatures = computed(() => {
   return product.value?.features?.split('\n').filter(f => f.trim()) || [
-    'Chất liệu TPU cao cấp, độ bền cao, chống trầy xước',
-    'Thiết kế slim fit, không làm dày máy',
-    'Gờ camera nổi bảo vệ cụm camera khỏi trầy xước',
-    '4 góc chống sốc, bảo vệ máy khi rơi',
-    'Tương thích hoàn toàn với MagSafe và các phụ kiện từ tính',
-    'Dễ dàng lắp đặt và tháo gỡ'
+
   ]
 })
 
@@ -475,8 +664,74 @@ const buyNow = async () => {
 }
 
 const handleImageError = (event) => {
-  event.target.src = 'https://via.placeholder.com/600x600?text=Ảnh+không+tải+được'
-  event.target.alt = 'Ảnh sản phẩm không khả dụng'
+  event.target.style.display = 'none'
+}
+
+const submitRating = async () => {
+  if (!newComment.value.trim() || newRating.value === 0) return
+  submittingComment.value = true
+  try {
+    await api.post(`/products/${product.value.product_id}/comments`, {
+      content: newComment.value,
+      rating: newRating.value,
+    })
+    alert('Đánh giá của bạn đã được đăng thành công!')
+    newComment.value = ''
+    newRating.value = 0
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi gửi đánh giá')
+  } finally {
+    submittingComment.value = false
+  }
+}
+
+const submitCommentOnly = async () => {
+  if (!newCommentOnly.value.trim()) return
+  submittingCommentOnly.value = true
+  try {
+    await api.post(`/products/${product.value.product_id}/comments`, {
+      content: newCommentOnly.value,
+      rating: null,
+    })
+    alert('Bình luận của bạn đã được đăng thành công!')
+    newCommentOnly.value = ''
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi gửi bình luận')
+  } finally {
+    submittingCommentOnly.value = false
+  }
+}
+
+const toggleReplyForm = (commentId) => {
+  replyForms.value[commentId] = !replyForms.value[commentId]
+  if (!replyContent.value[commentId]) replyContent.value[commentId] = ''
+}
+
+const cancelReply = (commentId) => {
+  replyForms.value[commentId] = false
+  replyContent.value[commentId] = ''
+}
+
+const submitReply = async (commentId) => {
+  const content = replyContent.value[commentId]?.trim()
+  if (!content) return
+  replying.value = true
+  try {
+    const res = await api.post(`/comments/${commentId}/reply`, { content })
+    const newReply = res.data.reply
+    const comment = product.value?.comments?.find(c => c.comment_id === commentId)
+    if (comment) {
+      if (!comment.replies) comment.replies = []
+      comment.replies.push(newReply)
+    }
+    alert('Trả lời thành công!')
+    replyForms.value[commentId] = false
+    replyContent.value[commentId] = ''
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi gửi trả lời')
+  } finally {
+    replying.value = false
+  }
 }
 
 // Fetch data
@@ -542,12 +797,116 @@ onMounted(async () => {
   .star {
   font-size: 24px;
   cursor: pointer;
-  color: #ccc; /* màu mặc định (xám) */
+  color: #ccc;
   transition: color 0.2s ease;
 }
 
 .star.active {
-  color: #ffc107; /* vàng đẹp */
+  color: #ffc107;
+}
+
+/* Variant buttons */
+
+.variant-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 110px;
+  min-height: 60px;
+  width: 70px;
+}
+
+.variant-btn:hover:not(.out-of-stock) {
+  border-color: #ff6b35;
+  transform: translateY(-2px);
+}
+
+.variant-btn:hover:not(.out-of-stock) {
+  border-color: #ff6b35;
+  transform: translateY(-2px);
+}
+
+.variant-btn:hover:not(.out-of-stock) {
+  border-color: #ff6b35;
+}
+.variant-btn.active {
+  border-color: #ff6b35;
+  background: #fff5f0;
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
+}
+.variant-btn.out-of-stock {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.variant-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.color-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: block;
+  border: 2px solid #f1f5f9;
+}
+
+.variant-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #f1f5f9;
+  transition: transform 0.2s;
+}
+
+.variant-btn:hover .variant-icon {
+  transform: scale(1.1);
+}
+.variant-price-hint {
+  font-size: 12px;
+  color: #ff6b35;
+  font-weight: 700;
+}
+.variant-oos-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 9px;
+  background: #ef4444;
+  color: white;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* Variant thumbnails */
+.variant-thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.variant-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.variant-thumb:hover, .variant-thumb.active {
+  border-color: #ff6b35;
 }
 /* Giữ nguyên style cũ của bạn, chỉ thêm class hỗ trợ loading/error */
 .loading-container, .error-container {
@@ -682,6 +1041,216 @@ onMounted(async () => {
 .login-to-comment a {
   color: #3b82f6;
   font-weight: 600;
+}
+
+/* Review card */
+.reviews-list {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.reviewer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.reviewer-avatar.small {
+  width: 30px;
+  height: 30px;
+}
+
+.review-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reviewer-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.review-date {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* .review-stars {
+  margin-left: auto;
+} */
+
+.star-on  { color: #f59e0b; font-size: 16px; }
+.star-off { color: #cbd5e1; font-size: 16px; }
+
+/* Mode toggle (now visible) */
+.mode-toggle {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.mode-toggle button {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.mode-toggle button.active,
+.mode-toggle button:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Enhanced summary styles */
+.big-rating {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #f59e0b;
+  line-height: 1;
+}
+
+.big-rating.no-rating {
+  color: #94a3b8;
+}
+
+.comment-count {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.rating-label,
+.rating-label-small {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+  font-weight: 500;
+}
+
+.review-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.review-content {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #334155;
+  margin: 0;
+}
+
+/* Reply actions */
+.reply-actions {
+  margin-top: 8px;
+}
+
+.reply-link {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+}
+
+.reply-link:hover {
+  text-decoration: underline;
+}
+
+/* Reply form */
+.reply-form {
+  margin-top: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.reply-form .comment-textarea {
+  min-height: 60px;
+  margin-bottom: 12px;
+}
+
+.reply-form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+/* Replies */
+.replies-list {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reply-card {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.reply-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 </style>
 

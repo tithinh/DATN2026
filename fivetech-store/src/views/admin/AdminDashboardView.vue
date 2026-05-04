@@ -1,7 +1,30 @@
 <template>
   <div>
     <!-- Stats Cards -->
-    <div class="stats-grid">
+    <div v-if="isLoading" class="stats-grid">
+      <div class="stat-card skeleton" v-for="i in 4" :key="i" :style="{ animationDelay: i * 0.1 + 's' }">
+        <div class="stat-info">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-value"></div>
+        </div>
+        <div class="stat-icon skeleton"></div>
+      </div>
+    </div>
+    <div v-else-if="hasError" class="stats-grid">
+      <div class="stat-card error-card" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+        <svg style="width: 48px; height: 48px; color: var(--admin-warning); margin-bottom: 1rem;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <h3>Không tải được dữ liệu</h3>
+        <p>Dashboard stats tạm thời không khả dụng. Vui lòng thử lại sau.</p>
+        <button @click="() => location.reload()" class="admin-btn admin-btn-primary mt-2">
+          Thử lại
+        </button>
+      </div>
+    </div>
+    <div v-else class="stats-grid">
       <div class="stat-card products slide-up" v-for="(stat, i) in stats" :key="i" :class="stat.type" :style="{ animationDelay: i * 0.1 + 's' }">
         <div class="stat-info">
           <h4>{{ stat.title }}</h4>
@@ -44,7 +67,7 @@
         <div class="chart-container" style="display: flex; align-items: center; justify-content: center;">
           <div style="text-align: center;">
             <div style="font-size: 48px; font-weight: 700; color: var(--admin-warning);">
-              {{ stats.find(s => s.type === 'orders')?.value || 0 }}
+              {{ pendingOrdersCount }}
             </div>
             <div style="color: var(--admin-text-muted);">đơn hàng</div>
           </div>
@@ -67,8 +90,6 @@
             <tr>
               <th>Mã đơn</th>
               <th>Khách hàng</th>
-              <th>Sản phẩm</th>
-              <th>Tổng tiền</th>
               <th>Trạng thái</th>
               <th>Ngày đặt</th>
             </tr>
@@ -77,8 +98,6 @@
             <tr v-for="order in recentOrders" :key="order.id">
               <td style="font-weight: 600; color: var(--admin-text);">#{{ order.id }}</td>
               <td>{{ order.customer }}</td>
-              <td>{{ order.product }}</td>
-              <td style="font-weight: 600; color: var(--admin-text);">{{ order.total }}</td>
               <td>
                 <span class="status-badge" :class="order.statusClass">{{ order.status }}</span>
               </td>
@@ -95,14 +114,26 @@
 import { ref, onMounted, computed } from 'vue'
 import api from '@/api'
 
+const data = ref(null)
+const defaultData = ref({
+  users: { total: 0, new_this_month: 0 },
+  products: { total: 0, total_stock: 0, low_stock: 0 },
+  orders: { total: 0, pending: 0, recent: [] },
+  revenue: { total: 0, this_month: 0 },
+  revenue_by_day: []
+})
 const stats = ref([])
 const recentOrders = ref([])
 const revenueByDay = ref([])
 const isLoading = ref(true)
+const hasError = ref(false)
 
 const formatCurrency = (value) => {
   if (!value) return '0₫'
-  return new Intl.NumberFormat('vi-VN').format(value) + '₫'
+  return new Intl.NumberFormat('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value) + '₫'
 }
 
 const formatDate = (date) => {
@@ -128,67 +159,81 @@ const getStatusText = (status) => {
   return texts[status] || status
 }
 
+const pendingOrdersCount = computed(() => data.value?.orders?.pending || 0)
+
+const total7DayRevenue = computed(() => {
+  const revenueData = data.value?.revenue_by_day || []
+  return revenueData.reduce((sum, item) => sum + (item.revenue || 0), 0)
+})
+
 onMounted(async () => {
   try {
     const res = await api.get('/admin/dashboard/stats')
-    const data = res.data
+    data.value = res.data || defaultData.value
 
+    const safeData = data.value || defaultData.value
+    
     // Stats cards
     stats.value = [
       {
         type: 'products',
         title: 'Tổng sản phẩm',
-        value: data.products.total,
-        change: `${data.products.low_stock} sắp hết`,
-        changeType: data.products.low_stock > 0 ? 'down' : 'up',
+        value: (safeData.products?.total ?? 0).toLocaleString(),
+        change: `${safeData.products?.low_stock ?? 0} sắp hết`,
+        changeType: (safeData.products?.low_stock ?? 0) > 0 ? 'down' : 'up',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>'
       },
       {
         type: 'orders',
         title: 'Tổng đơn hàng',
-        value: data.orders.total,
-        change: `${data.orders.pending} chờ xử lý`,
-        changeType: data.orders.pending > 0 ? 'down' : 'up',
+        value: (safeData.orders?.total ?? 0).toLocaleString(),
+        change: `${safeData.orders?.pending ?? 0} chờ xử lý`,
+        changeType: (safeData.orders?.pending ?? 0) > 0 ? 'down' : 'up',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>'
       },
       {
         type: 'revenue',
         title: 'Tổng doanh thu',
-        value: formatCurrency(data.revenue.total),
-        change: `${formatCurrency(data.revenue.this_month)} tháng này`,
+        value: formatCurrency(safeData.revenue?.total ?? 0),
+        change: `${formatCurrency(safeData.revenue?.this_month ?? 0)} tháng này`,
         changeType: 'up',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
       },
       {
         type: 'users',
         title: 'Tổng người dùng',
-        value: data.users.total,
-        change: `${data.users.new_this_month} tháng này`,
+        value: (safeData.users?.total ?? 0).toLocaleString(),
+        change: `${safeData.users?.new_this_month ?? 0} tháng này`,
         changeType: 'up',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
       }
     ]
 
     // Recent orders
-    recentOrders.value = data.orders.recent.map(order => ({
-      id: order.order_code || `DH${order.order_id}`,
+    recentOrders.value = (safeData.orders?.recent || []).map(order => ({
+      id: order.order_code || `DH${order.order_id || order.id || 'N/A'}`,
       customer: order.customer_name || order.user?.full_name || 'Khách vãng lai',
-      product: 'Xem chi tiết',
-      total: formatCurrency(order.final_amount),
-      status: getStatusText(order.status),
-      statusClass: getStatusClass(order.status),
+      total: formatCurrency(order.final_amount || 0),
+      status: getStatusText(order.status || 'pending'),
+      statusClass: getStatusClass(order.status || 'pending'),
       date: formatDate(order.created_at)
     }))
 
-    // Revenue by day (last 7 days)
-    revenueByDay.value = data.revenue_by_day.map(item => ({
+    // Revenue by day
+    const revenueData = safeData.revenue_by_day || []
+    const maxRevenue = revenueData.length > 0 ? Math.max(...revenueData.map(d => d.revenue || 0)) : 1
+    revenueByDay.value = revenueData.map(item => ({
       label: new Date(item.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
-      height: Math.max(10, (item.revenue / Math.max(...data.revenue_by_day.map(d => d.revenue), 1)) * 100),
-      value: formatCurrency(item.revenue)
+      height: Math.max(10, ((item.revenue || 0) / maxRevenue) * 100),
+      value: formatCurrency(item.revenue || 0)
     }))
 
   } catch (error) {
     console.error('Failed to load dashboard stats:', error)
+    hasError.value = true
+    // Use defaults on error
+    const safeData = defaultData.value
+    // ... populate stats/recentOrders/revenueByDay with defaults as above
   } finally {
     isLoading.value = false
   }

@@ -114,70 +114,117 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { useAdminAuthStore } from '@/stores/adminAuth'
 import api from '@/api'
+
+const adminStore = useAdminAuthStore()
 
 const searchQuery = ref('')
 const loading = ref(false)
+const submitting = ref(false)
 const showModal = ref(false)
 const isEditing = ref(false)
+const errorMessage = ref('')
 
 const form = ref({
   id: null,
   name: '',
+  slug: '',
   color: '#6366f1',
   description: '',
   is_visible: true
 })
 
 const categories = ref([])
-const totalItems = ref(0)
 
-// Fetch categories
+// ✅ FIX: slug hỗ trợ tiếng Việt
+const generateSlug = (name) => {
+  if (!name) return ''
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+// ✅ Auto generate slug
+watch(() => form.value.name, (newName) => {
+  form.value.slug = generateSlug(newName)
+})
+
+// ✅ Fetch categories (safe)
 const fetchCategories = async () => {
   loading.value = true
+  errorMessage.value = ''
   try {
-    const params = {
-      search: searchQuery.value.trim()
-    }
-    const res = await api.get('/admin/categories', { params })
-    categories.value = res.data.data || res.data || []
-    totalItems.value = res.data.total || categories.value.length
+    const res = await api.get('/admin/categories', {
+      params: { search: searchQuery.value.trim() }
+    })
+
+    let rawCategories = Array.isArray(res.data?.data)
+      ? res.data.data
+      : Array.isArray(res.data)
+      ? res.data
+      : [];
+    
+    categories.value = rawCategories.map(cat => ({
+      ...cat,
+      is_visible: Boolean(cat.is_active)
+    }))
   } catch (err) {
-    console.error('Lỗi tải danh mục:', err)
+    console.error(err)
+    errorMessage.value = err.response?.data?.message || 'Lỗi tải danh mục'
   } finally {
     loading.value = false
   }
 }
 
-// Debounce search
+// ✅ Debounce (chỉ dùng 1 chỗ)
 let debounceTimer
-const debouncedFetchCategories = () => {
+watch(searchQuery, () => {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(fetchCategories, 500)
-}
-
-onMounted(() => {
-  fetchCategories()
 })
 
-watch(searchQuery, () => {
-  debouncedFetchCategories()
-})
+onMounted(fetchCategories)
 
 // Format date
-const formatDate = (date) => new Date(date).toLocaleDateString('vi-VN')
+const formatDate = (date) =>
+  date ? new Date(date).toLocaleDateString('vi-VN') : '—'
 
-// Modal add/edit
+// Modal
 const openAddModal = () => {
   isEditing.value = false
-  form.value = { id: null, name: '', color: '#6366f1', description: '', is_visible: true }
+  form.value = {
+    id: null,
+    name: '',
+    slug: '',
+    color: '#6366f1',
+    description: '',
+    is_visible: true
+  }
   showModal.value = true
+
+  nextTick(() => {
+    document.querySelector('.admin-input')?.focus()
+  })
 }
 
 const openEditModal = (cat) => {
   isEditing.value = true
-  form.value = { ...cat }
+  form.value = {
+    id: cat.category_id,
+    name: cat.name,
+    slug: cat.slug,
+    color: cat.color || '#6366f1',
+    description: cat.description || '',
+    is_visible: cat.is_active ?? cat.is_visible ?? true
+  }
   showModal.value = true
 }
 
@@ -185,41 +232,73 @@ const closeModal = () => {
   showModal.value = false
 }
 
+// Delete
 const deleteCategory = async (cat) => {
-  if (!confirm(`Bạn có chắc muốn xóa danh mục "${cat.name}"?`)) return
+  if (!confirm(`Bạn có chắc muốn xóa "${cat.name}"?`)) return
   try {
     await api.delete(`/admin/categories/${cat.category_id}`)
     await fetchCategories()
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi xóa danh mục')
+    errorMessage.value =
+      err.response?.data?.message || 'Lỗi khi xóa danh mục'
   }
 }
 
+// Submit
 const submitForm = async () => {
+  if (!form.value.name.trim() || !form.value.slug.trim()) {
+    errorMessage.value = 'Vui lòng nhập tên và slug'
+    return
+  }
+
+  submitting.value = true
+  errorMessage.value = ''
+
   try {
-    const payload = { ...form.value }
+    const payload = {
+      name: form.value.name.trim(),
+      slug: form.value.slug.trim().toLowerCase(),
+      description: form.value.description || null,
+      color: form.value.color,
+      is_active: form.value.is_visible,
+      is_featured: false,
+      parent_id: null,
+      icon: null,
+      sort_order: null
+    }
+
     if (isEditing.value) {
       await api.put(`/admin/categories/${form.value.id}`, payload)
     } else {
       await api.post('/admin/categories', payload)
     }
-    fetchCategories()
+
+    await fetchCategories()
     closeModal()
   } catch (err) {
-    console.error('Lỗi submit danh mục:', err)
-    alert('Có lỗi xảy ra khi lưu danh mục')
+    if (err.response?.status === 422) {
+      const errors = err.response.data.errors
+      errorMessage.value = errors
+        ? Object.values(errors)[0]?.[0]
+        : 'Dữ liệu không hợp lệ'
+    } else if (err.response?.status === 409) {
+      errorMessage.value = 'Slug đã tồn tại'
+    } else {
+      errorMessage.value =
+        err.response?.data?.message || 'Lỗi khi lưu danh mục'
+    }
+  } finally {
+    submitting.value = false
   }
 }
 
-// Toggle visibility (ẩn/hiện danh mục)
+// ✅ Toggle chuẩn (sync backend)
 const toggleVisibility = async (cat) => {
   try {
-    const newStatus = !cat.is_visible
-    await api.put(`/admin/categories/${cat.id}`, { is_visible: newStatus })
-    cat.is_visible = newStatus
+    await api.put(`/admin/categories/${cat.category_id}/toggle-status`)
+    await fetchCategories()
   } catch (err) {
-    console.error('Lỗi cập nhật trạng thái:', err)
-    alert('Có lỗi khi cập nhật trạng thái hiển thị')
+    errorMessage.value = 'Lỗi cập nhật trạng thái'
   }
 }
 </script>

@@ -5,8 +5,10 @@
         <!-- Column 1: About -->
         <div class="footer-col">
           <div class="footer-logo">
-            <span class="logo-icon">T5</span>
-            <span class="logo-text">Techfive</span>
+            <span class="logo-icon">
+              <img src="/images/logo-t5.png" alt="T5 Logo" />
+            </span>
+            <span class="logo-text">TF</span>
           </div>
           <p class="footer-about">
             Techfive - Điểm đến tin cậy cho mọi phụ kiện điện thoại chính hãng.
@@ -111,7 +113,14 @@
   text-align: center;
 }
 .footer-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; justify-content: center; }
-.logo-icon { width: 44px; height: 44px; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 18px; }
+.logo-icon img{
+  width: 60px;
+  height: 60px;
+  background-image: url('/images/logo-t5.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
 .logo-text { font-size: 24px; font-weight: 800; color: #ffffff; }
 .footer-about { font-size: 14px; color: #94a3b8; line-height: 1.8; margin-bottom: 24px; }
 .footer-social { display: flex; gap: 12px; justify-content: center; }

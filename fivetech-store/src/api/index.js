@@ -217,5 +217,12 @@ export const forgotPassword = (email) => api.post('/password/forgot', { email })
 // Reset password with token
 export const resetPassword = (data) => api.post('/password/reset', data)
 
+// ======================
+// TRACK ORDER API
+// ======================
+
+// Public: Track an order by order_code or phone number
+export const trackOrder = (payload) => api.post('/track-order', payload)
+
 export { showToast }
 export default api

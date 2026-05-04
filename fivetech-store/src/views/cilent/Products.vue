@@ -9,7 +9,6 @@
           <span class="current">Sản phẩm</span>
         </nav>
         <h1 class="page-title">Tất cả sản phẩm</h1>
-        <p class="page-subtitle">Khám phá hơn {{ totalProducts }} phụ kiện điện thoại chính hãng</p>
       </div>
     </div>
 
@@ -26,9 +25,6 @@
         <div class="products-main">
           <!-- Toolbar -->
           <div class="products-toolbar">
-            <div class="results-count">
-              Hiển thị <strong>{{ products.length }}</strong> / {{ totalProducts }} sản phẩm
-            </div>
             <div class="toolbar-actions">
               <!-- Search Input -->
               <div class="search-box">

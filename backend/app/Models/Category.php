@@ -24,6 +24,7 @@ class Category extends Model
         'sort_order',
         'is_active',
         'is_featured',
+        'color',
     ];
 
     protected $casts = [

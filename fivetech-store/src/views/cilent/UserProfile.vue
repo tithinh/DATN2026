@@ -121,24 +121,18 @@
                       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                     </span>
                     <h3>Địa chỉ giao hàng</h3>
-                    <button class="edit-btn" @click="addAddress">Thêm địa chỉ</button>
                   </div>
                   <div class="card-body">
-                    <div class="address-list">
-                      <div class="address-item" v-for="(addr, index) in auth.user?.addresses || []" :key="index">
-                        <div class="address-badge" v-if="addr.is_default">Mặc định</div>
-                        <div class="address-info">
-                          <strong>{{ auth.user?.full_name }}</strong> | {{ auth.user?.phone }}
-                          <p>{{ addr.address }}, {{ addr.district }}, {{ addr.city }}</p>
+                    <div class="current-address">
+                      <div class="address-main">
+                        <div class="address-top">
+                          <strong>{{ auth.user?.full_name || 'Chưa cập nhật' }}</strong>
+                          <span class="address-phone">{{ auth.user?.phone || 'Chưa cập nhật' }}</span>
                         </div>
-                        <div class="address-actions">
-                          <button class="action-btn">Sửa</button>
-                          <button class="action-btn danger">Xóa</button>
-                        </div>
+                        <p class="address-text">{{ auth.user?.address || 'Chưa cập nhật' }}</p>
                       </div>
-                      <div v-if="!auth.user?.addresses?.length" class="empty-address">
-                        <p>Bạn chưa có địa chỉ giao hàng nào</p>
-                        <button class="btn-primary small" @click="addAddress">Thêm địa chỉ mới</button>
+                      <div class="address-actions">
+                        <router-link to="/profile/edit" class="action-btn primary small">Cập nhật</router-link>
                       </div>
                     </div>
                   </div>
@@ -168,11 +162,11 @@
               </div>
             </div>
 
-            <!-- Đơn hàng hiện tại -->
+            <!-- Đơn hàng -->
             <div v-if="activeTab === 'orders'" class="tab-panel">
               <div class="panel-header">
-                <h2 class="panel-title">Đơn hàng hiện tại</h2>
-                <p class="panel-desc">Theo dõi tình trạng đơn hàng đang xử lý</p>
+                <h2 class="panel-title">Đơn hàng của tôi</h2>
+                <p class="panel-desc">Theo dõi và quản lý tất cả đơn hàng của bạn</p>
               </div>
 
               <div v-if="loadingOrders" class="loading-state">
@@ -180,78 +174,13 @@
                 <p>Đang tải đơn hàng...</p>
               </div>
 
-              <div v-else-if="currentOrders.length === 0" class="empty-state">
-                <p>Bạn chưa có đơn hàng nào đang xử lý.</p>
+              <div v-else-if="allOrders.length === 0" class="empty-state">
+                <p>Bạn chưa có đơn hàng nào.</p>
                 <router-link to="/products" class="btn-primary">Tiếp tục mua sắm</router-link>
               </div>
 
               <div v-else class="orders-list">
-                <div class="order-card" v-for="order in currentOrders" :key="order.id">
-                  <div class="order-header">
-                    <div class="order-id">
-                      <span class="label">Mã đơn:</span>
-                      <span class="value">{{ order.order_code }}</span>
-                    </div>
-                    <span class="order-status" :class="order.status">{{ order.status_text }}</span>
-                  </div>
-
-                  <div class="order-progress">
-                    <div class="progress-track">
-                      <div class="progress-fill" :style="{ width: order.progress + '%' }"></div>
-                    </div>
-                    <div class="progress-steps">
-                      <div class="step" :class="{ completed: order.progress >= 33 }"><span class="step-dot"></span><span class="step-label">Chờ xử lý</span></div>
-                      <div class="step" :class="{ completed: order.progress >= 66 }"><span class="step-dot"></span><span class="step-label">Đang giao</span></div>
-                      <div class="step" :class="{ completed: order.progress >= 100 }"><span class="step-dot"></span><span class="step-label">Hoàn thành</span></div>
-                    </div>
-                  </div>
-
-                  <div class="order-items">
-                    <div class="item" v-for="item in order.items" :key="item.id">
-                      <img :src="item.image" :alt="item.name" class="item-image" />
-                      <div class="item-info">
-                        <h4 class="item-name">{{ item.name }}</h4>
-                        <p class="item-variant">{{ item.variant }}</p>
-                      </div>
-                      <div class="item-qty">x{{ item.quantity }}</div>
-                      <div class="item-price">{{ formatPrice(item.price) }}</div>
-                    </div>
-                  </div>
-
-                  <div class="order-footer">
-                    <div class="order-total">
-                      <span class="label">Tổng tiền:</span>
-                      <span class="value">{{ formatPrice(order.total) }}</span>
-                    </div>
-                    <div class="order-actions">
-                      <button class="action-btn outline" @click="viewOrderDetail(order.order_code)">Xem chi tiết</button>
-                      <button class="action-btn danger" v-if="order.status === 'pending'" @click="cancelOrder(order)">Hủy đơn</button>
-                      <button class="action-btn primary" v-if="order.status === 'shipping'" @click="confirmReceived(order)">Đã nhận hàng</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Lịch sử mua hàng -->
-            <div v-if="activeTab === 'history'" class="tab-panel">
-              <div class="panel-header">
-                <h2 class="panel-title">Lịch sử mua hàng</h2>
-                <p class="panel-desc">Xem lại các đơn hàng đã hoàn thành hoặc đã hủy</p>
-              </div>
-
-              <div v-if="loadingOrders" class="loading-state">
-                <div class="spinner"></div>
-                <p>Đang tải lịch sử...</p>
-              </div>
-
-              <div v-else-if="orderHistory.length === 0" class="empty-state">
-                <p>Bạn chưa có lịch sử mua hàng nào.</p>
-                <router-link to="/products" class="btn-primary">Tiếp tục mua sắm</router-link>
-              </div>
-
-              <div v-else class="orders-list">
-                <div class="order-card history" v-for="order in orderHistory" :key="order.id">
+                <div class="order-card" v-for="order in allOrders" :key="order.id">
                   <div class="order-header">
                     <div class="order-id">
                       <span class="label">Mã đơn:</span>
@@ -262,7 +191,7 @@
 
                   <div class="order-items">
                     <div class="item" v-for="item in order.items" :key="item.id">
-                      <img :src="item.image || '/images/default-product.jpg'" :alt="item.name" class="item-image" />
+                      <img :src="item.image ? storageUrl(item.image) : 'https://via.placeholder.com/60x60?text=SP'" :alt="item.name" class="item-image" @error="handleImageError" />
                       <div class="item-info">
                         <h4 class="item-name">{{ item.name }}</h4>
                         <p class="item-variant">{{ item.variant || 'Mặc định' }}</p>
@@ -279,6 +208,10 @@
                     </div>
                     <div class="order-actions">
                       <button class="action-btn outline" @click="viewOrderDetail(order.order_code)">Xem chi tiết</button>
+                      <button class="action-btn danger" v-if="['pending'].includes(order.status)" @click="cancelOrder(order)">Hủy đơn</button>
+                      <span v-if="order.status === 'cancelled'" class="status-badge cancelled">Đã hủy</span>
+                      <button class="action-btn primary" v-if="order.status === 'delivered'" @click="confirmReceived(order)">Đã nhận hàng</button>
+                      <button class="action-btn review" v-if="order.status === 'completed'" @click="openReviewModal(order)">★ Đánh giá</button>
                     </div>
                   </div>
                 </div>
@@ -341,23 +274,121 @@
       </div>
     </section>
   </div>
+
+  <!-- Modal Đánh giá -->
+  <div v-if="reviewModal.open" class="review-overlay" @click.self="closeReviewModal">
+    <div class="review-modal">
+      <div class="review-modal-header">
+        <h3>Đánh giá đơn hàng <span>#{{ reviewModal.orderCode }}</span></h3>
+        <button class="close-btn" @click="closeReviewModal">✕</button>
+      </div>
+      <div class="review-modal-body">
+        <div class="review-item" v-for="(item, idx) in reviewModal.items" :key="item.id">
+          <div class="review-product">
+            <img :src="item.image ? storageUrl(item.image) : 'https://via.placeholder.com/56x56?text=SP'" :alt="item.name" @error="handleImageError" />
+            <div class="review-product-info">
+              <p class="review-product-name">{{ item.name }}</p>
+              <p class="review-product-variant" v-if="item.variant">{{ item.variant }}</p>
+            </div>
+          </div>
+          <div class="star-rating">
+            <span
+              v-for="star in 5"
+              :key="star"
+              class="star"
+              :class="{ active: star <= (reviewModal.ratings[idx] || 0) }"
+              @click="reviewModal.ratings[idx] = star"
+            >★</span>
+          </div>
+          <textarea
+            v-model="reviewModal.contents[idx]"
+            class="review-textarea"
+            placeholder="Nhận xét của bạn về sản phẩm này..."
+            rows="3"
+          ></textarea>
+        </div>
+      </div>
+      <div class="review-modal-footer">
+        <button class="btn-cancel" @click="closeReviewModal">Bỏ qua</button>
+        <button class="btn-submit-review" @click="submitReviews" :disabled="reviewModal.submitting">
+          {{ reviewModal.submitting ? 'Đang gửi...' : 'Gửi đánh giá' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal thêm/sửa địa chỉ -->
+  <div v-if="addressModal.open" class="review-overlay" @click.self="closeAddressModal">
+    <div class="review-modal" style="max-width:500px">
+      <div class="review-modal-header">
+        <h3>{{ addressModal.editId ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới' }}</h3>
+        <button class="close-btn" @click="closeAddressModal">✕</button>
+      </div>
+      <div class="review-modal-body" style="padding:20px 24px">
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Họ và tên <span style="color:#ef4444">*</span></label>
+          <input class="form-input" v-model="addressModal.full_name" placeholder="Nguyễn Văn A" />
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Số điện thoại <span style="color:#ef4444">*</span></label>
+          <input class="form-input" v-model="addressModal.phone" placeholder="0912 345 678" />
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Địa chỉ đầy đủ <span style="color:#ef4444">*</span></label>
+          <input class="form-input" v-model="addressModal.address" placeholder="Số nhà, đường, phường/xã, quận/huyện, thành phố" />
+        </div>
+        <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" v-model="addressModal.is_default" />
+          Đặt làm địa chỉ mặc định
+        </label>
+        <p v-if="addressModal.error" style="color:#ef4444;margin-top:10px;font-size:13px">{{ addressModal.error }}</p>
+      </div>
+      <div class="review-modal-footer">
+        <button class="btn-cancel" @click="closeAddressModal">Hủy</button>
+        <button class="btn-submit-review" @click="saveAddress" :disabled="addressModal.saving">
+          {{ addressModal.saving ? 'Đang lưu...' : 'Lưu địa chỉ' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { storageUrl } from '@/utils/image'
 import api from '@/api'
 
 const router = useRouter()
 const auth = useAuthStore()
+const route = useRoute()
 
 const activeTab = ref('personal')
 const loadingOrders = ref(false)
 const loadingWishlist = ref(false)
-const currentOrders = ref([])
-const orderHistory = ref([])
+const loadingAddresses = ref(false)
+const allOrders = ref([])
 const wishlistItems = ref([])
+const addresses = ref([])
+
+// Address modal
+const addressModal = ref({
+  open: false, editId: null,
+  full_name: '', phone: '', address: '', is_default: false,
+  saving: false, error: '',
+})
+
+// Review modal state
+const reviewModal = ref({
+  open: false,
+  orderCode: '',
+  items: [],
+  ratings: [],
+  contents: [],
+  submitting: false,
+})
 
 const tabs = [
   {
@@ -367,13 +398,8 @@ const tabs = [
   },
   {
     id: 'orders',
-    label: 'Đơn hàng hiện tại',
+    label: 'Đơn hàng',
     icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" x2="12" y1="22.08" y2="12"/></svg>',
-  },
-  {
-    id: 'history',
-    label: 'Lịch sử mua hàng',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
   },
   {
     id: 'wishlist',
@@ -401,7 +427,7 @@ const editProfile = () => {
 }
 
 const addAddress = () => {
-  router.push('/profile/addresses/add')
+  openAddressModal()
 }
 
 const changePassword = () => {
@@ -422,13 +448,10 @@ const reorder = (order) => {
 const cancelOrder = async (order) => {
   if (!confirm('Bạn có chắc muốn hủy đơn hàng này?')) return
   try {
-    const orderId = order.order_code || order.id
-    await api.post(`/orders/${orderId}/cancel`)
+    await api.post(`/orders/${order.id}/cancel`)
     alert('Đã hủy đơn hàng thành công!')
-    // Reload orders
     const ordersRes = await api.get('/orders')
-    currentOrders.value = ordersRes.data.current || []
-    orderHistory.value = ordersRes.data.history || []
+    allOrders.value = ordersRes.data.orders || []
   } catch (err) {
     console.error('Cancel order failed:', err)
     alert(err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng thử lại!')
@@ -438,13 +461,10 @@ const cancelOrder = async (order) => {
 const confirmReceived = async (order) => {
   if (!confirm('Xác nhận bạn đã nhận được hàng?')) return
   try {
-    const orderId = order.order_code || order.id
-    await api.post(`/orders/${orderId}/confirm-received`)
+    await api.post(`/orders/${order.id}/confirm-received`)
     alert('Xác nhận nhận hàng thành công!')
-    // Reload orders
     const ordersRes = await api.get('/orders')
-    currentOrders.value = ordersRes.data.current || []
-    orderHistory.value = ordersRes.data.history || []
+    allOrders.value = ordersRes.data.orders || []
   } catch (err) {
     console.error('Confirm received failed:', err)
     alert(err.response?.data?.message || 'Không thể xác nhận. Vui lòng thử lại!')
@@ -491,8 +511,126 @@ const editAvatar = () => {
   router.push('/profile/edit')
 }
 
+// ==================== Address ====================
+const loadAddresses = async () => {
+  loadingAddresses.value = true
+  try {
+    const res = await api.get('/addresses')
+    addresses.value = res.data
+  } catch (err) {
+    console.error('Load addresses failed:', err)
+  } finally {
+    loadingAddresses.value = false
+  }
+}
+
+const openAddressModal = (addr = null) => {
+  addressModal.value = {
+    open: true,
+    editId: addr?.id || null,
+    full_name: addr?.full_name || '',
+    phone: addr?.phone || '',
+    address: addr?.address || '',
+    is_default: addr?.is_default || false,
+    saving: false,
+    error: '',
+  }
+}
+
+const closeAddressModal = () => {
+  addressModal.value.open = false
+}
+
+const saveAddress = async () => {
+  const m = addressModal.value
+  if (!m.full_name.trim() || !m.phone.trim() || !m.address.trim()) {
+    m.error = 'Vui lòng điền đầy đủ thông tin'
+    return
+  }
+  m.saving = true
+  m.error = ''
+  try {
+    const payload = { full_name: m.full_name, phone: m.phone, address: m.address, is_default: m.is_default }
+    if (m.editId) {
+      await api.put(`/addresses/${m.editId}`, payload)
+    } else {
+      await api.post('/addresses', payload)
+    }
+    closeAddressModal()
+    await loadAddresses()
+  } catch (err) {
+    m.error = err.response?.data?.message || 'Lưu địa chỉ thất bại'
+  } finally {
+    m.saving = false
+  }
+}
+
+const setDefaultAddress = async (id) => {
+  try {
+    await api.post(`/addresses/${id}/default`)
+    await loadAddresses()
+  } catch (err) {
+    console.error('Set default failed:', err)
+  }
+}
+
+const deleteAddress = async (id) => {
+  if (!confirm('Xóa địa chỉ này?')) return
+  try {
+    await api.delete(`/addresses/${id}`)
+    await loadAddresses()
+  } catch (err) {
+    console.error('Delete address failed:', err)
+  }
+}
+
+const openReviewModal = (order) => {
+  reviewModal.value = {
+    open: true,
+    orderCode: order.order_code,
+    items: order.items || [],
+    ratings: (order.items || []).map(() => 5),
+    contents: (order.items || []).map(() => ''),
+    submitting: false,
+  }
+}
+
+const closeReviewModal = () => {
+  reviewModal.value.open = false
+}
+
+const handleImageError = (event) => {
+  event.target.src = 'https://via.placeholder.com/60x60?text=SP'
+}
+
+const submitReviews = async () => {
+  reviewModal.value.submitting = true
+  const { items, ratings, contents } = reviewModal.value
+  let successCount = 0
+
+  for (let i = 0; i < items.length; i++) {
+    const productId = items[i].product_id
+    const rating = ratings[i] || 5
+    const content = contents[i]?.trim()
+    if (!content || !productId) continue
+    try {
+      await api.post(`/products/${productId}/comments`, { rating, content })
+      successCount++
+    } catch {}
+  }
+
+  reviewModal.value.submitting = false
+  reviewModal.value.open = false
+  if (successCount > 0) alert(`Đã gửi ${successCount} đánh giá thành công!`)
+  else alert('Vui lòng nhập nhận xét cho ít nhất 1 sản phẩm.')
+}
+
 // Load data khi mount
 onMounted(async () => {
+  // Set active tab from URL query param (for track order from OrderSuccess)
+  if (route.query.tab === 'orders') {
+    activeTab.value = 'orders'
+  }
   if (!auth.isAuthenticated) {
     router.push('/login')
     return
@@ -501,10 +639,12 @@ onMounted(async () => {
   loadingOrders.value = true
   loadingWishlist.value = true
   try {
-    // Lấy đơn hàng hiện tại (status pending/processing/shipping)
+    // Lấy đơn hàng
     const ordersRes = await api.get('/orders')
-    currentOrders.value = ordersRes.data.current || []
-    orderHistory.value = ordersRes.data.history || []
+    allOrders.value = ordersRes.data.orders || []
+
+    // Lấy địa chỉ
+    await loadAddresses()
 
     // Lấy wishlist
     const wishlistRes = await api.get('/wishlist')
@@ -519,15 +659,182 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Giữ nguyên style cũ + thêm nếu cần */
 @import '@/views/cilent/css/user-profile.css';
 
-/* Thêm style cho loading/error nếu cần */
 .loading-state {
   text-align: center;
   padding: 60px 0;
   color: #64748b;
 }
+
+/* Review Modal */
+.review-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.review-modal {
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.review-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.review-modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.review-modal-header h3 span {
+  color: #ff6b35;
+}
+
+.close-btn {
+  width: 36px;
+  height: 36px;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.close-btn:hover { background: #e2e8f0; color: #0f172a; }
+
+.review-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.review-item {
+  border: 1.5px solid #f1f5f9;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-product {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-product img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.review-product-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.review-product-variant {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.star-rating {
+  display: flex;
+  gap: 6px;
+}
+
+.star {
+  font-size: 28px;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.star:hover, .star.active { color: #fbbf24; transform: scale(1.1); }
+
+.review-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0f172a;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.review-textarea:focus { border-color: #ff6b35; }
+.review-textarea::placeholder { color: #94a3b8; }
+
+.review-modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #f1f5f9;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 10px 20px;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-cancel:hover { background: #e2e8f0; }
+
+.btn-submit-review {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-submit-review:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255,107,53,0.35); }
+.btn-submit-review:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Wishlist Grid Styles */
 .wishlist-grid {
@@ -638,31 +945,34 @@ onMounted(async () => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.wishlist-item-actions {
+  overflow: hidden;
+}
+
+.wishlist-item-actions:hover .remove-btn {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .remove-btn:hover {
-  background: #fecaca;
+  background: #f87171;
+  color: #ffffff;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.4);
+}
+
+.remove-btn:hover svg {
+  stroke: #ffffff;
 }
 
 /* History Order Styles */
 .order-card.history {
   border-left: 4px solid #94a3b8;
-}
-
-.order-card.history .order-status.completed {
-  background: #dcfce7;
-  color: #16a34a;
-}
-
-.action-btn.danger {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.action-btn.danger:hover {
-  background: #fecaca;
 }
 
 /* Spinner */

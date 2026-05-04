@@ -34,11 +34,11 @@ class DashboardController extends Controller
         $totalOrders = Order::count();
         $pendingOrders = Order::where('status', 'pending')->count();
 
-        $totalRevenue = Order::where('status', 'completed')
+        $totalRevenue = Order::whereIn('status', ['shipping', 'completed'])
             ->selectRaw('COALESCE(SUM(final_amount), 0) as total')
             ->value('total');
 
-        $revenueThisMonth = Order::where('status', 'completed')
+        $revenueThisMonth = Order::whereIn('status', ['shipping', 'completed'])
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->selectRaw('COALESCE(SUM(final_amount), 0) as total')

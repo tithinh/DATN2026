@@ -50,7 +50,13 @@
                   }">
                     {{ (user.full_name || user.name || 'U').charAt(0).toUpperCase() }}
                   </div>
-                  <span style="font-weight: 500; color: var(--admin-text);">{{ user.full_name || user.name }}</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-weight: 500; color: var(--admin-text);">{{ user.full_name || user.name }}</span>
+                    <span v-if="user.google_id" class="google-badge">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"/><path fill="#34A853" d="M16.0407269,18.0125889 C14.9509167,18.7163016 13.5660892,19.0909091 12,19.0909091 C8.86648613,19.0909091 6.21911939,17.076871 5.27698177,14.2678769 L1.23746264,17.3349879 C3.19279051,21.2970244 7.26500293,24 12,24 C14.9328362,24 17.7353462,22.9573905 19.834192,20.9995801 L16.0407269,18.0125889 Z"/><path fill="#4A90E2" d="M19.834192,20.9995801 C22.0291676,18.9520994 23.4545455,15.903663 23.4545455,12 C23.4545455,11.2909091 23.3454545,10.5272727 23.1818182,9.81818182 L12,9.81818182 L12,14.4545455 L18.4363636,14.4545455 C18.1187732,16.013626 17.2662994,17.2212117 16.0407269,18.0125889 L19.834192,20.9995801 Z"/><path fill="#FBBC05" d="M5.27698177,14.2678769 C5.03832634,13.556323 4.90909091,12.7937589 4.90909091,12 C4.90909091,11.2182781 5.03443647,10.4668121 5.26620003,9.76452941 L1.23999023,6.65002441 C0.43658717,8.26043162 0,10.0753848 0,12 C0,13.9195484 0.444780743,15.7301709 1.23746264,17.3349879 L5.27698177,14.2678769 Z"/></svg>
+                      Google
+                    </span>
+                  </div>
                 </div>
               </td>
               <td>{{ user.email || '—' }}</td>
@@ -67,9 +73,7 @@
                   <button class="action-btn edit" @click="openEditModal(user)" title="Sửa">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                   </button>
-                  <button class="action-btn delete" @click="deleteUser(user)" title="Xóa">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                  </button>
+                  
                 </div>
               </td>
             </tr>
@@ -127,13 +131,17 @@
           </div>
           <div class="admin-form-group">
             <label>Đặt lại mật khẩu <span style="font-size: 12px; color: var(--admin-text-soft); font-weight: 400;">(bỏ trống nếu không đổi)</span></label>
+            <div v-if="editingUser.google_id" class="google-login-note">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"/><path fill="#34A853" d="M16.0407269,18.0125889 C14.9509167,18.7163016 13.5660892,19.0909091 12,19.0909091 C8.86648613,19.0909091 6.21911939,17.076871 5.27698177,14.2678769 L1.23746264,17.3349879 C3.19279051,21.2970244 7.26500293,24 12,24 C14.9328362,24 17.7353462,22.9573905 19.834192,20.9995801 L16.0407269,18.0125889 Z"/><path fill="#4A90E2" d="M19.834192,20.9995801 C22.0291676,18.9520994 23.4545455,15.903663 23.4545455,12 C23.4545455,11.2909091 23.3454545,10.5272727 23.1818182,9.81818182 L12,9.81818182 L12,14.4545455 L18.4363636,14.4545455 C18.1187732,16.013626 17.2662994,17.2212117 16.0407269,18.0125889 L19.834192,20.9995801 Z"/><path fill="#FBBC05" d="M5.27698177,14.2678769 C5.03832634,13.556323 4.90909091,12.7937589 4.90909091,12 C4.90909091,11.2182781 5.03443647,10.4668121 5.26620003,9.76452941 L1.23999023,6.65002441 C0.43658717,8.26043162 0,10.0753848 0,12 C0,13.9195484 0.444780743,15.7301709 1.23746264,17.3349879 L5.27698177,14.2678769 Z"/></svg>
+              Người dùng đăng nhập qua Google — chưa có mật khẩu gốc. Có thể đặt mật khẩu để cho phép đăng nhập bằng email.
+            </div>
             <div class="password-input-wrapper">
-              <input 
-                class="admin-input" 
-                v-model="editingUser.new_password" 
-                :type="showPassword ? 'text' : 'password'" 
-                placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)" 
-                autocomplete="new-password" 
+              <input
+                class="admin-input"
+                v-model="editingUser.new_password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                autocomplete="new-password"
               />
               <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword">
                 <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -344,5 +352,38 @@ const deleteUser = async (user) => {
 
 .password-toggle-btn:hover {
   color: var(--admin-text);
+}
+
+.google-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5f6368;
+  background: #f1f3f4;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 1px 6px;
+  width: fit-content;
+}
+
+.google-login-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: #5f6368;
+  background: #f8f9fa;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.google-login-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 </style>

@@ -17,6 +17,7 @@
           <option value="pending">Chờ xử lý</option>
           <option value="shipping">Đang giao</option>
           <option value="completed">Hoàn thành</option>
+          <option value="cancelled">Đã hủy</option>
         </select>
       </div>
     </div>
@@ -37,8 +38,10 @@
               <th>SĐT</th>
               <th>Ngày đặt</th>
               <th>Tổng tiền</th>
-              <th>Trạng thái</th>
-              <th>Hành động</th>
+                <th>Thanh toán</th>
+                <th>Trạng thái</th>
+
+
             </tr>
           </thead>
           <tbody>
@@ -49,12 +52,43 @@
               <td>{{ formatDate(order.created_at) }}</td>
               <td style="font-weight:600; color: var(--admin-warning);">{{ formatPrice(order.total_amount) }}</td>
               <td>
-                <span class="status-badge" :class="order.status">
-                  {{ order.status_text }}
-                </span>
+                <div class="status-cell" v-if="editingOrderId !== order.id">
+                  <span 
+                    class="status-badge" 
+                    :class="order.status"
+                    @click="startEditStatus(order)"
+                    style="cursor: pointer; user-select: none;"
+                    title="Click để chỉnh sửa trạng thái"
+                  >
+                    {{ order.status_text || statusTexts[order.status] }}
+                  </span>
+                </div>
+                <div v-else class="status-edit-container">
+<select 
+                    v-model="tempStatus" 
+                    class="status-select"
+                    @change="confirmEditStatus(order)"
+                    @blur="cancelEditStatus(order)"
+                  >
+                    <option value="pending">Chờ xử lý</option>
+                    <option value="shipping">Đang giao</option>
+                    <option value="completed">Hoàn thành</option>
+                    <option value="cancelled">Đã hủy</option>
+                  </select>
+                  <span 
+                    v-if="updatingOrderId === order.id" 
+                    class="status-loading"
+                    title="Đang cập nhật..."
+                  >
+                    ⏳
+                  </span>
+                </div>
               </td>
               <td>
                 <div class="action-btns">
+                  <!-- <button class="action-btn delete" @click="openCancelModal(order)" title="Hủy đơn hàng">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                  </button> -->
                   <button class="action-btn view" @click="openDetail(order)" title="Xem chi tiết">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                   </button>
@@ -215,10 +249,11 @@
           <!-- Update Status -->
           <div class="admin-form-group">
             <label>Cập nhật trạng thái đơn hàng</label>
-            <select class="admin-select" v-model="selectedOrder.status">
+<select class="admin-select" v-model="selectedOrder.status">
               <option value="pending">Chờ xử lý</option>
               <option value="shipping">Đang giao</option>
               <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
             </select>
           </div>
         </div>
@@ -245,6 +280,17 @@ const selectedOrder = ref(null)
 const orders = ref([])
 const totalItems = ref(0)
 const totalPages = ref(1)
+
+// Inline editing
+const editingOrderId = ref(null)
+const tempStatus = ref('')
+const updatingOrderId = ref(null)
+
+const statusTexts = {
+  pending: 'Chờ xử lý',
+  shipping: 'Đang giao',
+  completed: 'Hoàn thành'
+}
 
 // Computed for pagination
 const startItem = computed(() => (currentPage.value - 1) * itemsPerPage + 1)
@@ -321,6 +367,46 @@ const openDetail = async (order) => {
   }
 }
 
+// Inline status editing functions
+const startEditStatus = (order) => {
+  editingOrderId.value = order.id || order.order_id
+  tempStatus.value = order.status
+}
+
+const confirmEditStatus = async (order) => {
+  if (tempStatus.value === order.status) {
+    cancelEditStatus()
+    return
+  }
+
+  updatingOrderId.value = order.id || order.order_id
+  try {
+    const orderId = order.id || order.order_id
+    await api.put(`/admin/orders/${orderId}/status`, { status: tempStatus.value })
+    
+    // Optimistic update
+    const orderIndex = orders.value.findIndex(o => (o.id || o.order_id) === orderId)
+    if (orderIndex !== -1) {
+      orders.value[orderIndex].status = tempStatus.value
+      orders.value[orderIndex].status_text = statusTexts[tempStatus.value]
+    }
+    
+    alert('Cập nhật trạng thái thành công!')
+  } catch (err) {
+    console.error('Lỗi cập nhật trạng thái:', err)
+    alert('Có lỗi khi cập nhật trạng thái. Vui lòng thử lại.')
+  } finally {
+    updatingOrderId.value = null
+    editingOrderId.value = null
+  }
+}
+
+const cancelEditStatus = (order) => {
+  editingOrderId.value = null
+  tempStatus.value = ''
+}
+
+
 const closeDetail = () => {
   showDetail.value = false
   selectedOrder.value = null
@@ -345,4 +431,34 @@ const updateOrderStatus = async () => {
 .status-badge.pending { background: #fef3c7; color: #d97706; }
 .status-badge.shipping { background: #dbeafe; color: #2563eb; }
 .status-badge.completed { background: #d1fae5; color: #059669; }
+
+.status-cell {
+  position: relative;
+  display: inline-block;
+}
+
+.status-edit-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-select {
+  padding: 4px 8px;
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  background: white;
+  font-size: 13px;
+  min-width: 100px;
+}
+
+.status-loading {
+  font-size: 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 </style>

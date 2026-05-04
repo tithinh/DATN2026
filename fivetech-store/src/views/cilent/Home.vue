@@ -11,10 +11,10 @@
       <div class="section-container">
         <div class="section-header">
           <div class="section-title-wrapper">
-            <h2 class="section-title">Phụ kiện bán chạy</h2>
-            <p class="section-subtitle">Sản phẩm được khách hàng yêu thích nhất</p>
+            <h2 class="section-title">Phụ kiện được yêu thích</h2>
+            <p class="section-subtitle">Phụ kiện được khách hàng yêu thích nhất</p>
           </div>
-          <div class="view-more-group">
+          <!-- <div class="view-more-group">
             <button 
               v-if="bestSellers.length > 4 && displayedBestSellers === 4"
               class="view-more-btn" 
@@ -29,7 +29,7 @@
             >
               Thu gọn
             </button>
-          </div>
+          </div> -->
         </div>
 
         <div class="products-grid" v-if="bestSellers.length">
@@ -40,14 +40,15 @@
           >
             <router-link :to="`/products/${product.slug}`" class="product-card-link">
               <article class="product-card">
-                <span class="product-badge badge-hot">Hot</span>
-                <div class="product-image-wrapper">
-                  <img 
-                    :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
-                    :alt="product.name"
-                    class="product-image"
-                  />
-                </div>
+              <span class="product-badge badge-hot">Hot</span>
+              <div class="product-image-wrapper">
+                <img 
+                  :src="productImage(product)"
+                  :alt="product.name"
+                  class="product-image"
+                  @error="handleImageError"
+                />
+              </div>
                 <div class="product-info">
                   <h3 class="product-name">{{ product.name }}</h3>
                   <div class="product-price">
@@ -78,6 +79,31 @@
         <p v-else-if="loading">Đang tải sản phẩm...</p>
         <p v-else>Không có sản phẩm nào</p>
       </div>
+      <div class="view-more-wrapper" v-if="bestSellers.length > 4">
+  
+  <span class="line"></span>
+
+  <!-- Xem thêm -->
+  <button 
+    v-if="displayedBestSellers === 4"
+    class="view-more-btn"
+    @click="displayedBestSellers = 8"
+  >
+    Xem thêm
+  </button>
+
+  <!-- Thu gọn -->
+  <button 
+    v-else
+    class="view-more-btn"
+    @click="displayedBestSellers = 4"
+  >
+    Thu gọn
+  </button>
+
+  <span class="line"></span>
+
+</div>
     </section>
 
     <!-- BANNER QUẢNG CÁO 1 -->
@@ -91,7 +117,7 @@
             <h2 class="section-title">Phụ kiện mới về</h2>
             <p class="section-subtitle">Cập nhật những sản phẩm mới nhất</p>
           </div>
-          <div class="view-more-group">
+          <!-- <div class="view-more-group">
             <button 
               v-if="newArrivals.length > 4 && displayedNewArrivals === 4"
               class="view-more-btn" 
@@ -106,7 +132,7 @@
             >
               Thu gọn
             </button>
-          </div>
+          </div> -->
         </div>
 
         <div class="products-grid" v-if="newArrivals.length">
@@ -120,9 +146,10 @@
               <span class="product-badge badge-new">New</span>
               <div class="product-image-wrapper">
                 <img 
-                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
+                  :src="productImage(product)"
                   :alt="product.name"
                   class="product-image"
+                  @error="handleImageError"
                 />
               </div>
               <div class="product-info">
@@ -142,6 +169,31 @@
         </div>
         <p v-else-if="loading">Đang tải...</p>
       </div>
+      <div class="view-more-wrapper" v-if="newArrivals.length > 4">
+  
+  <span class="line"></span>
+
+  <!-- Xem thêm -->
+  <button 
+    v-if="displayedNewArrivals === 4"
+    class="view-more-btn"
+    @click="displayedNewArrivals = 8"
+  >
+    Xem thêm
+  </button>
+
+  <!-- Thu gọn -->
+  <button 
+    v-else
+    class="view-more-btn"
+    @click="displayedNewArrivals = 4"
+  >
+    Thu gọn
+  </button>
+
+  <span class="line"></span>
+
+</div>
     </section>
 
     <!-- BANNER 2 -->
@@ -170,7 +222,7 @@
             <h2 class="section-title">🔥 Phụ kiện khuyến mãi</h2>
             <p class="section-subtitle">Giảm giá sốc - Số lượng có hạn</p>
           </div>
-          <div class="view-more-group">
+          <!-- <div class="view-more-group">
             <button 
               v-if="onSale.length > 4 && displayedOnSale === 4"
               class="view-more-btn" 
@@ -185,12 +237,12 @@
             >
               Thu gọn
             </button>
-          </div>
+          </div> -->
         </div>
 
         <div class="products-grid" v-if="onSale.length">
           <router-link
-            v-for="product in onSale.slice(0, displayedOnSale)"
+            v-for="product in sortedOnSale.slice(0, displayedOnSale)"
             :key="product.product_id"
             :to="`/products/${product.slug}`"
             class="product-card-link"
@@ -199,9 +251,10 @@
               <span class="product-badge badge-sale">-{{ product.base_price > 0 ? Math.round((1 - (product.discount_price / product.base_price)) * 100) : 0 }}%</span>
               <div class="product-image-wrapper">
                 <img 
-                  :src="storageUrl(product.variants?.[0]?.image_urls?.[0])"
+                  :src="productImage(product)"
                   :alt="product.name"
                   class="product-image"
+                  @error="handleImageError"
                 />
               </div>
               <div class="product-info">
@@ -221,15 +274,41 @@
           </router-link>
         </div>
         <p v-else-if="loading">Đang tải...</p>
-      </div>
-    </section>
 
+        
+      </div>
+      
+    </section>
+<div class="view-more-wrapper" v-if="onSale.length > 4">
+  
+  <span class="line"></span>
+
+  <!-- Xem thêm -->
+  <button 
+    v-if="displayedOnSale === 4"
+    class="view-more-btn"
+    @click="displayedOnSale = 8"
+  >
+    Xem thêm
+  </button>
+
+  <!-- Thu gọn -->
+  <button 
+    v-else
+    class="view-more-btn"
+    @click="displayedOnSale = 4"
+  >
+    Thu gọn
+  </button>
+
+  <span class="line"></span>
+
+</div>
     <!-- BANNER 3 -->
     <section class="promo-banner">
       <div class="banner-container">
         <div class="banner-content">
           <div class="banner-text">
-            <span class="banner-tag">🚚 Miễn phí vận chuyển</span>
             <h2 class="banner-title">Freeship đơn từ 300K toàn quốc</h2>
             <p class="banner-description">Áp dụng cho tất cả đơn hàng từ 300.000đ. Giao hàng nhanh 2-4 tiếng nội thành.</p>
             <router-link to="/products" class="banner-btn">Mua sắm ngay</router-link>
@@ -244,8 +323,6 @@
     <!-- BÀI VIẾT -->
     <BlogSection />
 
-    <!-- Ý KIẾN KHÁCH HÀNG -->
-    <TestimonialsSection />
 
     <!-- FOOTER -->
     <HomeFooter />
@@ -253,10 +330,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
 import { storageUrl } from '@/utils/image'
+
+const productImage = (product) => {
+  const variant = product.variants?.[0]
+  if (!variant) return null
+  
+  let imageUrls = variant.image_urls
+  
+  if (typeof imageUrls === 'string') {
+    try {
+      imageUrls = JSON.parse(imageUrls)
+    } catch (e) {
+      imageUrls = []
+    }
+  }
+  
+  if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+    const imagePath = imageUrls[0]
+    return imagePath.startsWith('http') ? imagePath : `/storage/${imagePath}`
+  }
+  
+  return product.thumbnail || product.image || null
+}
 
 import HomeHeader from '@/components/home/HomeHeader.vue'
 import HomeHero from '@/components/home/HomeHero.vue'
@@ -278,12 +377,27 @@ const displayedBestSellers = ref(4)
 const displayedNewArrivals = ref(4)
 const displayedOnSale = ref(4)
 
+const sortedOnSale = computed(() => {
+  return [...onSale.value]
+    .map(product => ({
+      ...product,
+      discountPercent: product.base_price > 0 && product.discount_price && product.discount_price < product.base_price 
+        ? Math.round((1 - (product.discount_price / product.base_price)) * 100) 
+        : 0
+    }))
+    .sort((a, b) => b.discountPercent - a.discountPercent)
+})
+
 // Helpers
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price) + 'đ'
 }
 
 const isInWishlist = (id) => wishlist.value.includes(id)
+
+const handleImageError = (event) => {
+  event.target.src = '/images/default-product.jpg'
+}
 
 const toggleWishlist = async (productId, event) => {
   // Ngăn chặn sự kiện click lan đến các phần tử cha
@@ -380,30 +494,41 @@ const router = useRouter()
 
 <style scoped>
 /* Nút "Xem thêm" và "Thu gọn" */
-.view-more-btn,
-.view-less-btn {
-  background: #ff6b35;
-  color: white;
+.view-more-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 25px;
+}
+
+.view-more-wrapper .line {
+  flex: 1;
+  height: 1px;
+  background: #ddd;
+}
+
+.view-more-btn {
+  margin: 0 12px;
+  padding: 6px 14px;
+  background: transparent;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
+  cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
+  color: #333;
+  transition: 0.3s;
 }
 
-.view-more-btn:hover,
-.view-less-btn:hover {
-  background: #e55f2e;
-  transform: translateY(-2px);
+.view-more-btn:hover {
+  color: #007bff;
+}
+.view-more-btn {
+  transition: all 0.3s ease;
 }
 
-.view-more-group {
-  display: flex;
-  gap: 10px;
+.view-more-btn:hover {
+  transform: scale(1.05);
 }
-
 /* ================= BASE STYLES ================= */
 .home-page {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

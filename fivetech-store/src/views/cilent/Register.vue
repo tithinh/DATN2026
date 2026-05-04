@@ -5,39 +5,15 @@
       <div class="auth-branding">
         <div class="brand-content">
           <div class="brand-logo">
-            <span class="logo-icon">T5</span>
-            <span class="logo-text">Techfive</span>
+            <span class="logo-icon">
+              <img src="/images/logo-t5.png" alt="T5 Logo" />
+            </span>
+            <span class="logo-text">TF</span>
           </div>
           <h1 class="brand-title">Tham gia ngay!</h1>
           <p class="brand-description">
-            Đăng ký thành viên để nhận ngay voucher giảm 50K cho đơn hàng đầu tiên và nhiều ưu đãi khác.
+            Đăng ký thành viên.
           </p>
-          <div class="brand-features">
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79 4.26 7 1.93-3.97 1.38 3.01L22 2l-10.9 9.3Z"/><path d="m20 2-7.54 11.16"/></svg>
-              </span>
-              <span style="color: #f97316">Giảm 50K đơn đầu tiên</span>
-            </div>
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2" ry="2"/><polyline points="16 8 20 8 23 11 23 16 16 16"/><path d="M16 16v-8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-              </span>
-              <span style="color: #22c55e">Freeship đơn từ 300K</span>
-            </div>
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-              </span>
-              <span style="color: #f43f5e">Tích điểm đổi quà hấp dẫn</span>
-            </div>
-            <div class="feature-item">
-              <span class="feature-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>
-              </span>
-              <span style="color: #8b5cf6">Ưu đãi sinh nhật đặc biệt</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -475,20 +451,14 @@ const handleFacebookRegister = () => {
   margin-bottom: 40px;
 }
 
-.logo-icon {
-  width: 56px;
-  height: 56px;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 800;
-  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+.logo-icon img{
+  width: 100px;
+  height: 80px;
+  background-image: url('/images/logo-t5.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
-
 .logo-text {
   font-size: 32px;
   font-weight: 800;

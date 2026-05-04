@@ -16,6 +16,7 @@ export const useCartStore = defineStore('cart', {
     finalShippingFee: 30000, // phí ship sau khi áp dụng điều kiện miễn phí
     couponCode: '',
     couponApplied: null, // lưu thông tin coupon nếu cần hiển thị chi tiết
+    availableCoupons: [] as any[], // danh sách mã giảm giá khả dụng
     loading: false,
     error: null,
   }),
@@ -56,19 +57,28 @@ export const useCartStore = defineStore('cart', {
       }
     },
 
+    // Tải danh sách mã giảm giá khả dụng
+    async fetchAvailableCoupons() {
+      try {
+        const res = await api.get('/promotions/available', {
+          params: { subtotal: this.subtotal }
+        })
+        this.availableCoupons = res.data?.data || []
+      } catch (err) {
+        console.error('Lỗi tải danh sách coupon:', err)
+        this.availableCoupons = []
+      }
+    },
+
     // Cập nhật số lượng sản phẩm
     async updateQuantity(id, qty) {
       if (qty < 1) return
 
       this.loading = true
       try {
-        const item = this.items.find(i => i.id === id)
-        if (!item) throw new Error('Không tìm thấy sản phẩm')
-
         await api.put('/cart/update', {
           id,
           quantity: qty,
-          variant_id: item.variant_id || item.variant?.variant_id || null
         })
 
         await this.fetchCart()
@@ -133,6 +143,7 @@ export const useCartStore = defineStore('cart', {
         this.couponApplied = res.data
         this.couponCode = code
         this.calculateTotals()
+        await this.fetchAvailableCoupons()
       } catch (err) {
         this.discount = 0
         this.couponApplied = null
@@ -149,6 +160,7 @@ export const useCartStore = defineStore('cart', {
       this.couponApplied = null
       this.couponCode = ''
       this.calculateTotals()
+      await this.fetchAvailableCoupons()
     },
 
     // Tính toán lại tất cả tổng tiền
@@ -185,12 +197,22 @@ export const useCartStore = defineStore('cart', {
 
     // Xóa toàn bộ giỏ hàng (gọi khi logout hoặc theo yêu cầu)
     async clearCart() {
+      // Chỉ clear cart của user hiện tại (không clear guest cart của user khác)
       try {
-        await api.delete('/cart/clear') // nếu có endpoint
+        await api.delete('/cart/clear')
       } catch (err) {
         console.error('Clear cart failed:', err)
       }
       this.resetCart()
+    },
+
+    // Watch auth changes - auto refresh cart khi login/logout
+    watchAuth() {
+      const authStore = useAuthStore()
+      // Refresh cart khi auth state thay đổi
+      if (authStore.isAuthenticated) {
+        this.fetchCart()
+      }
     },
   },
 })
